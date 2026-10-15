@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "Delis Snacks - Botanas & Eventos",
+  "short_name": "Delis Snacks",
+  "description": "Botanas mexicanas, gomitas y dulces enchilados, fruta con chile y barras de snacks para eventos.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#dc2626",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1582058091505-f87a2e55a40f?w=192&fit=crop",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1582058091505-f87a2e55a40f?w=512&fit=crop",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}
