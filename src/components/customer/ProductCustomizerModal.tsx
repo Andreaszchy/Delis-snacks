@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Check, AlertCircle, Plus, Minus, ShoppingBag, Tag } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { CartItem, SelectedOptionItem } from '../../types';
+import { normalizeDriveOrDirectUrl } from '../../utils/googleDrive';
 
 export const ProductCustomizerModal: React.FC = () => {
   const { modalProductId, closeProductModal, products, addToCart, theme, businessProfile, ingredients } = useApp();
@@ -199,14 +200,38 @@ export const ProductCustomizerModal: React.FC = () => {
                   <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
 
-                {/* Product Image */}
-                <img
-                  src={product.imageUrl}
-                  alt={product.name}
-                  className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                  referrerPolicy="no-referrer"
-                  onError={() => setImageError(true)}
-                />
+                {/* Product Image respecting custom framing and zoom */}
+                {product.imageFit === 'contain' ? (
+                  <>
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center blur-md opacity-25 scale-110 pointer-events-none"
+                      style={{ backgroundImage: `url(${product.imageUrl})` }}
+                    />
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="relative z-10 w-full h-full object-contain p-2 sm:p-3 transition-transform duration-500 hover:scale-105"
+                      style={{
+                        transform: `scale(${(product.imageZoom || 100) / 100})`,
+                        objectPosition: product.imagePosition || 'center',
+                      }}
+                      referrerPolicy="no-referrer"
+                      onError={() => setImageError(true)}
+                    />
+                  </>
+                ) : (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                    style={{
+                      transform: `scale(${(product.imageZoom || 100) / 100})`,
+                      objectPosition: product.imagePosition || 'center',
+                    }}
+                    referrerPolicy="no-referrer"
+                    onError={() => setImageError(true)}
+                  />
+                )}
 
                 {/* Top & bottom gradient overlay for maximum contrast of controls and badges */}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-transparent to-black/35 pointer-events-none" />
@@ -352,6 +377,7 @@ export const ProductCustomizerModal: React.FC = () => {
                             const linkedIng = opt.extraIngredientId
                               ? ingredients.find((i) => i.id === opt.extraIngredientId)
                               : null;
+                            const optImage = opt.imageUrl || linkedIng?.imageUrl;
                             const reqQty = (opt.extraIngredientQuantity && opt.extraIngredientQuantity > 0)
                               ? opt.extraIngredientQuantity
                               : 1;
@@ -394,6 +420,15 @@ export const ProductCustomizerModal: React.FC = () => {
                                   >
                                     {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                                   </div>
+                                  {optImage && (
+                                    <div className="w-9 h-9 rounded-xl border border-slate-200 overflow-hidden bg-slate-100 shrink-0 shadow-2xs">
+                                      <img
+                                        src={normalizeDriveOrDirectUrl(optImage).normalizedUrl}
+                                        alt={opt.name}
+                                        className="w-full h-full object-contain p-0.5"
+                                      />
+                                    </div>
+                                  )}
                                   <div className="flex flex-col min-w-0">
                                     <span className={`font-medium break-words leading-tight ${isSelected ? 'text-slate-950 font-bold' : isBlockedByMax ? 'text-slate-600' : 'text-slate-800'}`}>
                                       {opt.name}

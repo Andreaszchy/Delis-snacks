@@ -456,7 +456,7 @@ export const CartDrawer: React.FC = () => {
                       <img
                         src={item.imageUrl}
                         alt={item.productName}
-                        className="w-12 h-12 rounded-lg object-cover bg-slate-200 shrink-0"
+                        className="w-12 h-12 rounded-lg object-contain p-0.5 bg-slate-50 border border-slate-200 shrink-0"
                         referrerPolicy="no-referrer"
                         onError={(e) => {
                           (e.target as HTMLElement).style.display = 'none';

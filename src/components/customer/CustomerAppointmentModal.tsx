@@ -21,6 +21,8 @@ import {
   Tag,
 } from 'lucide-react';
 import { Service, SelectedOptionItem, ProductOptionGroup, ProductOption } from '../../types';
+import { normalizeDriveOrDirectUrl } from '../../utils/googleDrive';
+import { InteractiveBookingCalendar } from '../common/InteractiveBookingCalendar';
 
 interface CustomerAppointmentModalProps {
   isOpen: boolean;
@@ -409,7 +411,7 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
                 </div>
                 <p>Para confirmar tu evento a domicilio, realiza tu pago a la tarjeta <strong>4152314180582036</strong> (Ariana Vianey Ibarra) por un total de <strong>{businessProfile.currency}{successApp.totalPrice.toFixed(2)}</strong>.</p>
                 <a
-                  href={`https://wa.me/${(businessProfile.phone || '526695934225').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                  href={`https://wa.me/526691232954?text=${encodeURIComponent(
                     `Adjunto comprobante de la solicitud de servicio de ${activeService?.name || 'barra'} con id: ${successApp.number}`
                   )}`}
                   target="_blank"
@@ -595,6 +597,15 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
                                     >
                                       {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                                     </div>
+                                    {opt.imageUrl && (
+                                      <div className="w-7 h-7 rounded-lg border border-slate-200 overflow-hidden bg-slate-100 shrink-0 shadow-2xs">
+                                        <img
+                                          src={normalizeDriveOrDirectUrl(opt.imageUrl).normalizedUrl}
+                                          alt={opt.name}
+                                          className="w-full h-full object-contain p-0.5"
+                                        />
+                                      </div>
+                                    )}
                                     <span className="text-xs font-semibold truncate">{opt.name}</span>
                                   </div>
 
@@ -658,20 +669,14 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
                   3. Fecha y Horarios Disponibles
                 </label>
                 
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                  <input
-                    type="date"
-                    min={todayStr}
-                    max={maxDateStr}
-                    value={selectedDate}
-                    onChange={(e) => {
-                      setSelectedDate(e.target.value);
-                      setSelectedTime('');
-                    }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-rose-500 outline-none"
-                  />
-                </div>
+                <InteractiveBookingCalendar
+                  selectedDate={selectedDate}
+                  onSelectDate={(newDate) => {
+                    setSelectedDate(newDate);
+                    setSelectedTime('');
+                  }}
+                  providerId={selectedProviderId}
+                />
 
                 {availableSlots.length === 0 ? (
                   <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-2">

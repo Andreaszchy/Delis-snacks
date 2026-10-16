@@ -18,9 +18,12 @@ import {
   ListFilter,
   CheckSquare,
   Layers,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Service, ServiceModality, ConfirmationType, PriceType, ProductOptionGroup, ProductOption } from '../../types';
 import { GoogleDriveInput } from '../common/GoogleDriveInput';
+import { ImageFramingController } from '../common/ImageFramingController';
+import { normalizeDriveOrDirectUrl } from '../../utils/googleDrive';
 
 export const AdminServices: React.FC = () => {
   const { services, addService, updateService, deleteService, providers, businessProfile, theme } = useApp();
@@ -54,6 +57,9 @@ export const AdminServices: React.FC = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [imageFit, setImageFit] = useState<'cover' | 'contain'>('cover');
+  const [imageZoom, setImageZoom] = useState<number>(100);
+  const [imagePosition, setImagePosition] = useState<string>('center');
   const [category, setCategory] = useState('');
   const [priceType, setPriceType] = useState<PriceType>('fijo');
   const [price, setPrice] = useState<number>(0);
@@ -191,6 +197,9 @@ export const AdminServices: React.FC = () => {
     setName('');
     setDescription('');
     setImageUrl('');
+    setImageFit('cover');
+    setImageZoom(100);
+    setImagePosition('center');
     setCategory('');
     setPriceType('fijo');
     setPrice(0);
@@ -216,6 +225,9 @@ export const AdminServices: React.FC = () => {
     setName(serv.name);
     setDescription(serv.description);
     setImageUrl(serv.imageUrl);
+    setImageFit(serv.imageFit || 'cover');
+    setImageZoom(typeof serv.imageZoom === 'number' ? serv.imageZoom : 100);
+    setImagePosition(serv.imagePosition || 'center');
     setCategory(serv.category);
     setPriceType(serv.priceType);
     setPrice(serv.price);
@@ -253,6 +265,7 @@ export const AdminServices: React.FC = () => {
             ...opt,
             name: opt.name.trim(),
             priceDelta: Number(opt.priceDelta) || 0,
+            imageUrl: opt.imageUrl?.trim() || undefined,
           }))
           .filter((opt) => opt.name.length > 0),
       }))
@@ -262,6 +275,9 @@ export const AdminServices: React.FC = () => {
       name: name.trim(),
       description: description.trim(),
       imageUrl: imageUrl.trim() || '/src/assets/images/hero_artisan_banner_1791387671351.jpg',
+      imageFit,
+      imageZoom,
+      imagePosition,
       category: category.trim(),
       priceType,
       price: finalPrice,
@@ -365,11 +381,21 @@ export const AdminServices: React.FC = () => {
                     {catServices.map((serv) => (
                       <div key={serv.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between">
                         <div>
-                          <div className="relative aspect-[16/10] bg-slate-100 overflow-hidden">
+                          <div
+                            className={`relative aspect-[16/10] ${
+                              serv.imageFit === 'contain' ? 'bg-slate-50' : 'bg-slate-100'
+                            } flex items-center justify-center overflow-hidden`}
+                          >
                             <img
                               src={serv.imageUrl}
                               alt={serv.name}
-                              className="w-full h-full object-cover"
+                              className={`w-full h-full ${
+                                serv.imageFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'
+                              }`}
+                              style={{
+                                transform: `scale(${(serv.imageZoom || 100) / 100})`,
+                                objectPosition: serv.imagePosition || 'center',
+                              }}
                               referrerPolicy="no-referrer"
                               onError={(e) => {
                                 (e.target as HTMLElement).style.display = 'none';
@@ -563,6 +589,24 @@ export const AdminServices: React.FC = () => {
                   label="Fotografía del Servicio"
                   placeholder="URL o Google Drive..."
                 />
+
+                {imageUrl && (
+                  <div className="mt-3.5">
+                    <ImageFramingController
+                      imageUrl={imageUrl}
+                      fit={imageFit}
+                      zoom={imageZoom}
+                      position={imagePosition}
+                      aspectRatio="16/10"
+                      label="Ajuste, Zoom y Encuadre del Servicio"
+                      onChange={({ fit, zoom, position }) => {
+                        setImageFit(fit);
+                        setImageZoom(zoom);
+                        setImagePosition(position);
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Tiempos de Agenda */}
@@ -919,49 +963,74 @@ export const AdminServices: React.FC = () => {
                           {group.options.map((opt) => (
                             <div
                               key={opt.id}
-                              className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center gap-2"
+                              className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs space-y-2"
                             >
-                              <div className="flex-1 min-w-0">
-                                <input
-                                  type="text"
-                                  value={opt.name}
-                                  onChange={(e) =>
-                                    handleUpdateOption(group.id, opt.id, { name: e.target.value })
-                                  }
-                                  placeholder="Nombre de la opción (ej: Paquete 50 personas, Charola de frutas)"
-                                  className="w-full px-2.5 py-1 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium"
-                                />
-                              </div>
-
-                              <div className="flex items-center gap-2 shrink-0">
-                                <div className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200">
-                                  <span className="text-[11px] font-bold text-slate-500">
-                                    Precio extra:
-                                  </span>
-                                  <span className="text-xs font-bold text-slate-500">{businessProfile.currency}</span>
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                <div className="flex-1 min-w-0">
                                   <input
-                                    type="number"
-                                    min="0"
-                                    step="any"
-                                    value={opt.priceDelta === 0 ? '' : opt.priceDelta}
+                                    type="text"
+                                    value={opt.name}
                                     onChange={(e) =>
-                                      handleUpdateOption(group.id, opt.id, {
-                                        priceDelta: parseFloat(e.target.value) || 0,
-                                      })
+                                      handleUpdateOption(group.id, opt.id, { name: e.target.value })
                                     }
-                                    placeholder="0"
-                                    className="w-16 px-1.5 py-0.5 text-xs font-bold bg-white border border-slate-300 rounded text-right focus:outline-none focus:ring-1 focus:ring-slate-900"
+                                    placeholder="Nombre de la opción (ej: Paquete 50 personas, Charola de frutas)"
+                                    className="w-full px-2.5 py-1 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium"
                                   />
                                 </div>
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveOption(group.id, opt.id)}
-                                  className="p-1 text-slate-400 hover:text-rose-600 rounded"
-                                  title="Eliminar opción"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <div className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200">
+                                    <span className="text-[11px] font-bold text-slate-500">
+                                      Precio extra:
+                                    </span>
+                                    <span className="text-xs font-bold text-slate-500">{businessProfile.currency}</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="any"
+                                      value={opt.priceDelta === 0 ? '' : opt.priceDelta}
+                                      onChange={(e) =>
+                                        handleUpdateOption(group.id, opt.id, {
+                                          priceDelta: parseFloat(e.target.value) || 0,
+                                        })
+                                      }
+                                      placeholder="0"
+                                      className="w-16 px-1.5 py-0.5 text-xs font-bold bg-white border border-slate-300 rounded text-right focus:outline-none focus:ring-1 focus:ring-slate-900"
+                                    />
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveOption(group.id, opt.id)}
+                                    className="p-1 text-slate-400 hover:text-rose-600 rounded"
+                                    title="Eliminar opción"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Foto de la opción */}
+                              <div className="pt-1.5 border-t border-slate-100 flex items-center gap-2">
+                                <ImageIcon className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                <input
+                                  type="text"
+                                  value={opt.imageUrl || ''}
+                                  onChange={(e) =>
+                                    handleUpdateOption(group.id, opt.id, { imageUrl: e.target.value })
+                                  }
+                                  placeholder="Foto de la opción (enlace de Google Drive o URL)..."
+                                  className="w-full px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium text-slate-800"
+                                />
+                                {opt.imageUrl && (
+                                  <div className="w-6 h-6 rounded-md border border-slate-200 overflow-hidden bg-slate-100 shrink-0">
+                                    <img
+                                      src={normalizeDriveOrDirectUrl(opt.imageUrl).normalizedUrl}
+                                      alt={opt.name}
+                                      className="w-full h-full object-contain p-0.5"
+                                    />
+                                  </div>
+                                )}
                               </div>
                             </div>
                           ))}

@@ -22,12 +22,14 @@ import {
 } from 'lucide-react';
 import { AppointmentStatus, DaySchedule, ScheduleException, Provider, Appointment } from '../../types';
 import { GoogleDriveInput } from '../common/GoogleDriveInput';
+import { InteractiveBookingCalendar } from '../common/InteractiveBookingCalendar';
 
 export const AdminSchedule: React.FC = () => {
   const {
     appointments,
     updateAppointmentStatus,
     deleteAppointment,
+    cancelAppointment,
     markTransferReceiptReceived,
     providers,
     addProvider,
@@ -44,8 +46,10 @@ export const AdminSchedule: React.FC = () => {
   } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState<'citas' | 'horario' | 'excepciones' | 'proveedores'>('citas');
-  const [statusFilter, setStatusFilter] = useState<string>('todas');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState<string>(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
 
   // Selected provider for schedule configuration
   const [selectedScheduleProviderId, setSelectedScheduleProviderId] = useState<string>(
@@ -70,18 +74,7 @@ export const AdminSchedule: React.FC = () => {
   const currentProviderSchedule = activeScheduleProvider?.weeklySchedule || weeklySchedule;
 
   const uniqueAppointments = Array.from(new Map(appointments.map((a) => [a.id, a])).values());
-  const filteredAppointments = uniqueAppointments.filter((app) => {
-    if (statusFilter !== 'todas' && app.status !== statusFilter) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchName = app.customerName.toLowerCase().includes(q);
-      const matchNumber = app.appointmentNumber.toLowerCase().includes(q);
-      const matchService = app.serviceName.toLowerCase().includes(q);
-      const matchPhone = app.customerPhone.toLowerCase().includes(q);
-      return matchName || matchNumber || matchService || matchPhone;
-    }
-    return true;
-  });
+
 
   const generateWhatsAppLink = (app: Appointment) => {
     const optionsText =
@@ -222,7 +215,7 @@ export const AdminSchedule: React.FC = () => {
               activeSubTab === 'citas' ? `${theme.buttonClass} shadow-sm font-bold` : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 font-medium'
             }`}
           >
-            Citas & Eventos ({uniqueAppointments.length})
+            Calendario de Disponibilidad
           </button>
           <button
             onClick={() => setActiveSubTab('horario')}
@@ -282,222 +275,185 @@ export const AdminSchedule: React.FC = () => {
             </div>
           </div>
 
-          {/* Filter Bar & Search */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
-            <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-              {[
-                { id: 'todas', label: 'Todas' },
-                { id: 'pendiente', label: 'Pendientes' },
-                { id: 'confirmada', label: 'Confirmadas' },
-                { id: 'completada', label: 'Completadas' },
-                { id: 'cancelada', label: 'Canceladas' },
-              ].map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => setStatusFilter(f.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                    statusFilter === f.id
-                      ? `${theme.buttonClass} shadow-2xs`
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+          {/* Calendario de Disponibilidad */}
 
-            <div className="relative w-full md:w-72">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Buscar cliente, cita, servicio..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-rose-500 outline-none"
-              />
+            <div className="space-y-4">
+              {/* Guidance Info Banner */}
+              <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-2xl flex items-start gap-2.5 text-xs text-indigo-950">
+                <CalendarDays className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">Control de Capacidad Diaria (Máximo 2 Eventos por Día)</p>
+                  <p className="text-[11px] text-indigo-800 mt-0.5">
+                    🟢 <strong>Verde</strong>: Totalmente disponible (0 eventos). | 🟡 <strong>Amarillo</strong>: 1 cita reservada (queda 1 horario libre para clientes). | 🔴 <strong>Rojo</strong>: 2 citas reservadas (día lleno, cerrado para nuevas reservas). Si se cancela alguno de los dos eventos, el día vuelve a Amarillo y el horario desocupado se reabre automáticamente.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                {/* Left: Interactive Availability Calendar */}
+                <div className="lg:col-span-7 space-y-3">
+                  {providers.length > 1 && (
+                    <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-slate-500" />
+                        <span className="text-xs font-bold text-slate-700">Horario de:</span>
+                      </div>
+                      <select
+                        value={selectedScheduleProviderId}
+                        onChange={(e) => setSelectedScheduleProviderId(e.target.value)}
+                        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-rose-500 outline-none"
+                      >
+                        {providers.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} ({p.role})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <InteractiveBookingCalendar
+                    selectedDate={calendarSelectedDate}
+                    onSelectDate={(newDate) => setCalendarSelectedDate(newDate)}
+                    providerId={activeScheduleProvider?.id || providers[0]?.id}
+                    allowAdminSelectionOnFullDays={true}
+                  />
+                </div>
+
+                {/* Right: Selected Day Events & Inspector */}
+                <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 space-y-4">
+                  {(() => {
+                    const [y, m, d] = (calendarSelectedDate || '').split('-').map(Number);
+                    const selDateObj = !isNaN(y) ? new Date(y, m - 1, d) : new Date();
+                    const dayName = selDateObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+                    const dayApps = appointments.filter((a) => {
+                      const aStart = new Date(a.startTimeUtc);
+                      const dStr = `${aStart.getFullYear()}-${String(aStart.getMonth() + 1).padStart(2, '0')}-${String(aStart.getDate()).padStart(2, '0')}`;
+                      return dStr === calendarSelectedDate;
+                    });
+
+                    const activeDayApps = dayApps.filter((a) => a.status !== 'cancelada');
+                    const cancelledDayApps = dayApps.filter((a) => a.status === 'cancelada');
+
+                    let statusColor = 'bg-emerald-50 text-emerald-800 border-emerald-300';
+                    let statusLabel = '🟢 Totalmente disponible (0/2 eventos)';
+                    if (activeDayApps.length >= 2) {
+                      statusColor = 'bg-rose-50 text-rose-800 border-rose-300';
+                      statusLabel = '🔴 Día Lleno (2/2 eventos) - No disponible';
+                    } else if (activeDayApps.length === 1) {
+                      statusColor = 'bg-amber-50 text-amber-900 border-amber-300';
+                      statusLabel = '🟡 1 evento reservado (1 cupo libre)';
+                    }
+
+                    return (
+                      <div className="space-y-3">
+                        <div className="border-b border-slate-100 pb-3">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Detalles del Día Seleccionado
+                          </span>
+                          <h4 className="font-extrabold text-slate-900 capitalize text-sm sm:text-base mt-0.5">
+                            {dayName}
+                          </h4>
+                          <div className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${statusColor}`}>
+                            <span>{statusLabel}</span>
+                          </div>
+                        </div>
+
+                        {/* Events List for this Day */}
+                        <div className="space-y-2.5">
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                            Eventos agendados ({activeDayApps.length} activos{cancelledDayApps.length > 0 ? `, ${cancelledDayApps.length} cancelado` : ''})
+                          </span>
+
+                          {dayApps.length === 0 ? (
+                            <div className="p-6 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-1.5">
+                              <Calendar className="w-6 h-6 text-emerald-500 mx-auto" />
+                              <p className="font-bold text-xs text-slate-700">Sin citas para este día</p>
+                              <p className="text-[11px] text-slate-400">
+                                El día tiene 2 cupos libres disponibles para clientes en el catálogo.
+                              </p>
+                            </div>
+                          ) : (
+                            dayApps.map((app) => {
+                              const aStart = new Date(app.startTimeUtc);
+                              const aEnd = new Date(app.endTimeUtc);
+                              const timeRange = `${aStart.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} - ${aEnd.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
+                              const isCancelled = app.status === 'cancelada';
+
+                              return (
+                                <div
+                                  key={app.id}
+                                  className={`p-3 rounded-xl border text-xs space-y-2 transition-all ${
+                                    isCancelled
+                                      ? 'bg-slate-50 border-slate-200 opacity-70'
+                                      : 'bg-white border-slate-200 shadow-2xs'
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-mono font-bold text-slate-900 text-xs">#{app.appointmentNumber}</span>
+                                        {getStatusBadge(app.status)}
+                                      </div>
+                                      <h5 className="font-bold text-slate-900 mt-0.5 text-xs">{app.serviceName}</h5>
+                                    </div>
+                                    <span className="font-mono text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                                      {timeRange}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+                                    <span>Cliente: <strong className="text-slate-800">{app.customerName}</strong></span>
+                                    <span>{app.customerPhone}</span>
+                                  </div>
+
+                                  {/* Action Buttons */}
+                                  <div className="pt-1 flex items-center justify-end gap-1.5">
+                                    {!isCancelled ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (window.confirm(`¿Deseas cancelar la cita #${app.appointmentNumber}? El horario quedará desocupado y el día volverá a estar disponible.`)) {
+                                            cancelAppointment(app.id);
+                                          }
+                                        }}
+                                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors"
+                                        title="Cancelar cita y liberar horario"
+                                      >
+                                        Cancelar Cita (Liberar Cupo)
+                                      </button>
+                                    ) : (
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] text-slate-400 italic">
+                                          Horario desocupado y libre
+                                        </span>
+                                        {activeDayApps.length < 2 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => updateAppointmentStatus(app.id, 'confirmada')}
+                                            className="px-2 py-0.5 rounded text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200"
+                                            title="Reactivar cita"
+                                          >
+                                            Reactivar
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
-
-          {/* Appointments Grid */}
-          {filteredAppointments.length === 0 ? (
-            <div className="bg-white p-12 rounded-2xl border border-slate-100 text-center space-y-3">
-              <Calendar className="w-12 h-12 text-slate-300 mx-auto" />
-              <p className="font-bold text-slate-700 text-base">No hay citas registradas en este filtro.</p>
-              <p className="text-xs text-slate-400">Las citas y eventos agendados por los clientes aparecerán aquí automáticamente.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {filteredAppointments.map((app, index) => {
-                const startDate = new Date(app.startTimeUtc);
-                const endDate = new Date(app.endTimeUtc);
-                const startHour = startDate.getHours();
-                const isNight = Boolean((app.nightSurcharge && app.nightSurcharge > 0) || startHour >= 21);
-
-                return (
-                  <div
-                    key={`${app.id}-${index}`}
-                    className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4 hover:shadow-xs transition-shadow flex flex-col justify-between"
-                  >
-                    <div className="space-y-3">
-                      {/* Top Row: Res# and Status */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-extrabold text-sm text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg">
-                            #{app.appointmentNumber}
-                          </span>
-                          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                            {app.modality === 'domicilio' ? 'A Domicilio' : 'En Local'}
-                          </span>
-                        </div>
-                        {getStatusBadge(app.status)}
-                      </div>
-
-                      {/* Service & Specialist */}
-                      <div>
-                        <h4 className="text-base font-extrabold text-slate-900">{app.serviceName}</h4>
-                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                          <span>Especialista: <strong className="text-slate-700">{app.providerName}</strong></span>
-                        </div>
-                      </div>
-
-                      {/* Date & Time pill + Night Badge */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-xl text-xs font-bold text-slate-800">
-                          <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                          <span>{startDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-                          <span className="text-slate-300">|</span>
-                          <Clock className="w-3.5 h-3.5 text-slate-500" />
-                          <span>
-                            {startDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} - {endDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-
-                        {isNight && (
-                          <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-900 border border-indigo-200 rounded-xl text-xs font-bold">
-                            <span>🌙</span>
-                            <span>Horario Nocturno (+{businessProfile.currency}200)</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Selected Customization Options */}
-                      {app.selectedOptions && app.selectedOptions.length > 0 && (
-                        <div className="p-3 bg-rose-50/50 rounded-xl border border-rose-100 text-xs space-y-1.5">
-                          <span className="font-bold text-rose-950 block text-[11px] flex items-center gap-1">
-                            <Sliders className="w-3 h-3 text-rose-600" /> Opciones Personalizadas:
-                          </span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {app.selectedOptions.map((opt, i) => (
-                              <span key={i} className="bg-white px-2 py-0.5 rounded-md border border-rose-200 text-rose-900 text-[11px] font-medium">
-                                <strong className="text-slate-700">{opt.groupTitle}:</strong> {opt.optionName}
-                                {opt.priceDelta > 0 && ` (+${businessProfile.currency}${opt.priceDelta})`}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Customer Details */}
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-800">{app.customerName}</span>
-                          <span className="text-slate-500 font-mono">{app.customerPhone}</span>
-                        </div>
-                        {app.customerAddress && (
-                          <p className="text-[11px] text-slate-600 truncate">📍 {app.customerAddress}</p>
-                        )}
-                        {app.customerNotes && (
-                          <p className="text-[11px] text-slate-500 italic">"{app.customerNotes}"</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Bottom Row: Total & Action Controls */}
-                    <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Total a Cobrar</span>
-                        <span className="font-mono font-black text-base text-slate-900">
-                          {app.priceType === 'a_cotizar' ? 'A Cotizar' : `${businessProfile.currency}${app.totalPrice.toFixed(2)}`}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {/* WhatsApp Contact Link */}
-                        <a
-                          href={generateWhatsAppLink(app)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1 transition-colors"
-                          title="Contactar por WhatsApp"
-                        >
-                          <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>WhatsApp</span>
-                        </a>
-
-                        {/* Status Change & Transfer Receipt Buttons */}
-                        {!app.transferReceiptReceived && (
-                          <button
-                            onClick={() => markTransferReceiptReceived(app.id, true)}
-                            className="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-2xs transition-all active:scale-95 flex items-center gap-1"
-                            title="Marcar comprobante de transferencia como recibido y confirmar cita"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Comprobante Recibido & Confirmar</span>
-                          </button>
-                        )}
-                        {app.transferReceiptReceived && (
-                          <span className="px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1">
-                            <span>✓</span> Comprobante Validado
-                          </span>
-                        )}
-
-                        {app.status === 'pendiente' && !app.transferReceiptReceived && (
-                          <button
-                            onClick={() => updateAppointmentStatus(app.id, 'confirmada')}
-                            className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs transition-all active:scale-95"
-                          >
-                            Aprobar
-                          </button>
-                        )}
-
-                        {app.status === 'confirmada' && (
-                          <button
-                            onClick={() => updateAppointmentStatus(app.id, 'completada')}
-                            className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-2xs transition-all active:scale-95"
-                          >
-                            Completar
-                          </button>
-                        )}
-
-                        {app.status !== 'cancelada' && app.status !== 'completada' && (
-                          <button
-                            onClick={() => updateAppointmentStatus(app.id, 'cancelada')}
-                            className="px-2 py-1.5 rounded-xl text-rose-600 hover:bg-rose-50 border border-rose-200 text-xs font-bold transition-colors"
-                          >
-                            Cancelar
-                          </button>
-                        )}
-
-                        <button
-                          onClick={() => {
-                            if (window.confirm('¿Eliminar definitivamente este registro de cita?')) {
-                              deleteAppointment(app.id);
-                            }
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
-                          title="Eliminar cita"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+        )}
 
       {/* SUBTAB 1: HORARIO SEMANAL PERSONALIZADO POR PERSONAL */}
       {activeSubTab === 'horario' && (

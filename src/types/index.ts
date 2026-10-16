@@ -36,6 +36,7 @@ export interface Ingredient {
   costPerUnit: number; // Costo por unidad de medida (ej. $0.35/g o $12/unidad)
   category: string; // ej. "Café & Granos", "Lácteos", "Carnes & Panes", "Empaques"
   supplier?: string;
+  imageUrl?: string; // Imagen opcional del insumo/ingrediente
 }
 
 export interface ProductRecipeItem {
@@ -53,6 +54,7 @@ export interface ProductOption {
   priceDelta: number; // 0 for no price change, > 0 for extra cost
   extraIngredientId?: string; // Opcional: si la opción consume un ingrediente extra central
   extraIngredientQuantity?: number; // Cantidad consumida por la opción
+  imageUrl?: string; // Imagen opcional para ilustrar la opción
 }
 
 export interface ProductOptionGroup {
@@ -98,6 +100,11 @@ export interface Service {
 
   // Grupos de opciones personalizables por el cliente
   optionGroups?: ProductOptionGroup[];
+
+  // Ajuste, zoom y encuadre personalizado de imagen
+  imageFit?: 'cover' | 'contain';
+  imageZoom?: number; // 100 a 200 (%)
+  imagePosition?: string; // 'center', 'top', 'bottom', 'left', 'right'
 }
 
 export type ProductType = 'comida' | 'bebida' | 'producto_fisico' | 'servicio';
@@ -123,6 +130,10 @@ export interface Product {
   durationMinutes?: number; // Duración del servicio en minutos (ej. 60)
   bufferMinutes?: number;   // Tiempo de pausa/limpieza entre citas (ej. 15)
   providerIds?: string[];   // IDs de proveedores que realizan este servicio
+  // Ajuste, zoom y encuadre personalizado de imagen
+  imageFit?: 'cover' | 'contain';
+  imageZoom?: number; // 100 a 200 (%)
+  imagePosition?: string; // 'center', 'top', 'bottom', 'left', 'right'
 }
 
 export type BannerBadge = 'PROMOCIÓN' | 'PATROCINIO' | 'NOVEDAD' | 'ANUNCIO';

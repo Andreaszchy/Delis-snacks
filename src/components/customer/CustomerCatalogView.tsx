@@ -74,11 +74,21 @@ export const CustomerCatalogView: React.FC = () => {
         key={product.id}
         className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col group"
       >
-        <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
+        <div
+          className={`relative aspect-[4/3] ${
+            product.imageFit === 'contain' ? 'bg-slate-50' : 'bg-slate-100'
+          } flex items-center justify-center overflow-hidden`}
+        >
           <img
             src={product.imageUrl}
             alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className={`w-full h-full ${
+              product.imageFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'
+            } group-hover:scale-105 transition-transform duration-500`}
+            style={{
+              transform: `scale(${(product.imageZoom || 100) / 100})`,
+              objectPosition: product.imagePosition || 'center',
+            }}
             referrerPolicy="no-referrer"
             onError={(e) => {
               (e.target as HTMLElement).style.display = 'none';
@@ -150,11 +160,21 @@ export const CustomerCatalogView: React.FC = () => {
         className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col group justify-between"
       >
         <div>
-          <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
+          <div
+            className={`relative aspect-[4/3] ${
+              service.imageFit === 'contain' ? 'bg-slate-50' : 'bg-slate-100'
+            } flex items-center justify-center overflow-hidden`}
+          >
             <img
               src={service.imageUrl}
               alt={service.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              className={`w-full h-full ${
+                service.imageFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'
+              } group-hover:scale-105 transition-transform duration-500`}
+              style={{
+                transform: `scale(${(service.imageZoom || 100) / 100})`,
+                objectPosition: service.imagePosition || 'center',
+              }}
               referrerPolicy="no-referrer"
               onError={(e) => {
                 (e.target as HTMLElement).style.display = 'none';

@@ -29,6 +29,7 @@ export const AdminSalesOrders: React.FC = () => {
     updateOrderStatus,
     updateAppointmentStatus,
     markOrderPaymentReceived,
+    markTransferReceiptReceived,
     deleteOrder,
     deleteAppointment,
     clearAllOrders,
@@ -653,24 +654,40 @@ export const AdminSalesOrders: React.FC = () => {
                       </button>
                     )}
                     {!isOrder && appointment && (
-                      <button
-                        onClick={() =>
-                          updateAppointmentStatus(
-                            appointment.id,
-                            appointment.status === 'completada' ? 'confirmada' : 'completada'
-                          )
-                        }
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                          appointment.status === 'completada'
-                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs'
-                        }`}
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>
-                          {appointment.status === 'completada' ? 'Servicio Realizado ✓' : 'Completar y Cobrar'}
-                        </span>
-                      </button>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {/* Comprobante Recibido & Confirmar */}
+                        <button
+                          onClick={() => {
+                            markTransferReceiptReceived(appointment.id, true);
+                            updateAppointmentStatus(appointment.id, 'confirmada');
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            appointment.status === 'confirmada' || appointment.transferReceiptReceived
+                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                              : 'bg-amber-500 text-white hover:bg-amber-600 shadow-xs'
+                          }`}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>
+                            {appointment.status === 'confirmada' || appointment.transferReceiptReceived ? 'Comprobante Validado ✓' : 'Comprobante Recibido & Confirmar'}
+                          </span>
+                        </button>
+
+                        {/* Completar */}
+                        <button
+                          onClick={() => updateAppointmentStatus(appointment.id, 'completada')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            appointment.status === 'completada'
+                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                              : 'bg-slate-900 text-white hover:bg-slate-800 shadow-xs'
+                          }`}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>
+                            {appointment.status === 'completada' ? 'Completado ✓' : 'Completar'}
+                          </span>
+                        </button>
+                      </div>
                     )}
 
                     {/* WhatsApp */}

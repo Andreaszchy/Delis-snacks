@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { GoogleDriveInput } from '../common/GoogleDriveInput';
+import { ImageFramingController } from '../common/ImageFramingController';
+import { normalizeDriveOrDirectUrl } from '../../utils/googleDrive';
 import {
   IngredientUnit,
   Product,
@@ -65,6 +67,9 @@ export const AdminCatalog: React.FC = () => {
   const [stock, setStock] = useState<number>(0);
   const [minStockAlert, setMinStockAlert] = useState<number>(5);
   const [imageUrl, setImageUrl] = useState('');
+  const [imageFit, setImageFit] = useState<'cover' | 'contain'>('cover');
+  const [imageZoom, setImageZoom] = useState<number>(100);
+  const [imagePosition, setImagePosition] = useState<string>('center');
   const [badge, setBadge] = useState('');
   const [optionGroups, setOptionGroups] = useState<ProductOptionGroup[]>([]);
   const [recipe, setRecipe] = useState<ProductRecipeItem[]>([]);
@@ -80,6 +85,9 @@ export const AdminCatalog: React.FC = () => {
     setStock(0);
     setMinStockAlert(5);
     setImageUrl('');
+    setImageFit('cover');
+    setImageZoom(100);
+    setImagePosition('center');
     setBadge('');
     setRecipe([]);
     setOptionGroups([]);
@@ -97,6 +105,9 @@ export const AdminCatalog: React.FC = () => {
     setStock(prod.stock);
     setMinStockAlert(prod.minStockAlert);
     setImageUrl(prod.imageUrl);
+    setImageFit(prod.imageFit || 'cover');
+    setImageZoom(typeof prod.imageZoom === 'number' ? prod.imageZoom : 100);
+    setImagePosition(prod.imagePosition || 'center');
     setBadge(prod.badge || '');
     setOptionGroups(JSON.parse(JSON.stringify(prod.optionGroups || [])));
     setRecipe(prod.recipe ? JSON.parse(JSON.stringify(prod.recipe)) : []);
@@ -301,6 +312,7 @@ export const AdminCatalog: React.FC = () => {
             name: opt.name.trim(),
             priceDelta: Number(opt.priceDelta) || 0,
           };
+          if (opt.imageUrl && opt.imageUrl.trim()) cleanOpt.imageUrl = opt.imageUrl.trim();
           if (opt.extraIngredientId) cleanOpt.extraIngredientId = opt.extraIngredientId;
           if (typeof opt.extraIngredientQuantity === 'number') cleanOpt.extraIngredientQuantity = opt.extraIngredientQuantity;
           return cleanOpt;
@@ -322,6 +334,9 @@ export const AdminCatalog: React.FC = () => {
       stock: Math.max(0, Number(stock) || 0),
       minStockAlert: Math.max(0, Number(minStockAlert) || 0),
       imageUrl: imageUrl.trim() || '',
+      imageFit,
+      imageZoom,
+      imagePosition,
       available: true,
       optionGroups: cleanedOptionGroups,
       recipe,
@@ -375,11 +390,21 @@ export const AdminCatalog: React.FC = () => {
             className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between"
           >
             <div>
-              <div className="relative aspect-[16/10] bg-slate-100 overflow-hidden">
+              <div
+                className={`relative aspect-[16/10] ${
+                  product.imageFit === 'contain' ? 'bg-slate-50' : 'bg-slate-100'
+                } flex items-center justify-center overflow-hidden`}
+              >
                 <img
                   src={product.imageUrl}
                   alt={product.name}
-                  className="w-full h-full object-cover"
+                  className={`w-full h-full ${
+                    product.imageFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'
+                  }`}
+                  style={{
+                    transform: `scale(${(product.imageZoom || 100) / 100})`,
+                    objectPosition: product.imagePosition || 'center',
+                  }}
                   referrerPolicy="no-referrer"
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = 'none';
@@ -616,6 +641,23 @@ export const AdminCatalog: React.FC = () => {
                   placeholder="https://drive.google.com/file/d/... o https://..."
                   helperText="Puedes pegar el enlace para compartir de Google Drive y el sistema lo normalizará al instante."
                 />
+
+                {imageUrl && (
+                  <div className="mt-3.5">
+                    <ImageFramingController
+                      imageUrl={imageUrl}
+                      fit={imageFit}
+                      zoom={imageZoom}
+                      position={imagePosition}
+                      aspectRatio="16/10"
+                      onChange={({ fit, zoom, position }) => {
+                        setImageFit(fit);
+                        setImageZoom(zoom);
+                        setImagePosition(position);
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Section 3: Option Groups & Customizer Builder */}
@@ -886,6 +928,38 @@ export const AdminCatalog: React.FC = () => {
                                       <span>Registrar Insumo</span>
                                     </button>
                                   )}
+                                </div>
+
+                                {/* Fila 3: Imagen ilustrativa de la opción */}
+                                <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center gap-2">
+                                  <div className="flex items-center gap-1.5 text-slate-600 shrink-0">
+                                    <ImageIcon className="w-3.5 h-3.5 text-indigo-500" />
+                                    <span className="text-[11px] font-semibold text-slate-700">
+                                      Foto de la opción:
+                                    </span>
+                                  </div>
+                                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      value={opt.imageUrl || ''}
+                                      onChange={(e) =>
+                                        handleUpdateOption(group.id, opt.id, {
+                                          imageUrl: e.target.value,
+                                        })
+                                      }
+                                      placeholder="Pega enlace de Google Drive o URL de imagen..."
+                                      className="w-full px-2.5 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium text-slate-800"
+                                    />
+                                    {(opt.imageUrl || linkedIng?.imageUrl) && (
+                                      <div className="w-7 h-7 rounded-lg border border-slate-200 overflow-hidden bg-slate-100 shrink-0 shadow-2xs">
+                                        <img
+                                          src={normalizeDriveOrDirectUrl(opt.imageUrl || linkedIng?.imageUrl || '').normalizedUrl}
+                                          alt={opt.name}
+                                          className="w-full h-full object-contain p-0.5"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             );

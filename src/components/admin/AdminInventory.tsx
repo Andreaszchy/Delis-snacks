@@ -22,9 +22,11 @@ import {
   X,
   RefreshCw,
   Boxes,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Ingredient, IngredientUnit, Product, ProductRecipeItem } from '../../types';
+import { normalizeDriveOrDirectUrl } from '../../utils/googleDrive';
 
 export const AdminInventory: React.FC = () => {
   const {
@@ -65,6 +67,7 @@ export const AdminInventory: React.FC = () => {
   const [ingCost, setIngCost] = useState<number>(10);
   const [ingCategory, setIngCategory] = useState('Insumos Generales');
   const [ingSupplier, setIngSupplier] = useState('');
+  const [ingImageUrl, setIngImageUrl] = useState('');
 
   // Restock Quick Modal
   const [restockIngredient, setRestockIngredient] = useState<Ingredient | null>(null);
@@ -196,6 +199,7 @@ export const AdminInventory: React.FC = () => {
     setIngCost(10);
     setIngCategory('Insumos Generales');
     setIngSupplier('');
+    setIngImageUrl('');
     setIsIngredientModalOpen(true);
   };
 
@@ -208,6 +212,7 @@ export const AdminInventory: React.FC = () => {
     setIngCost(ing.costPerUnit);
     setIngCategory(ing.category);
     setIngSupplier(ing.supplier || '');
+    setIngImageUrl(ing.imageUrl || '');
     setIsIngredientModalOpen(true);
   };
 
@@ -224,6 +229,7 @@ export const AdminInventory: React.FC = () => {
         costPerUnit: Math.max(0, Number(ingCost) || 0),
         category: ingCategory.trim(),
         supplier: ingSupplier.trim() || undefined,
+        imageUrl: ingImageUrl.trim() || undefined,
       });
     } else {
       addIngredient({
@@ -234,6 +240,7 @@ export const AdminInventory: React.FC = () => {
         costPerUnit: Math.max(0, Number(ingCost) || 0),
         category: ingCategory.trim(),
         supplier: ingSupplier.trim() || undefined,
+        imageUrl: ingImageUrl.trim() || undefined,
       });
     }
     setIsIngredientModalOpen(false);
@@ -457,6 +464,27 @@ export const AdminInventory: React.FC = () => {
               >
                 Agotados ({outOfStockIngredientsCount})
               </button>
+
+              {ingredients.some((i) => i.id.startsWith('ing-chamoy') || i.id.startsWith('ing-chile') || i.id.startsWith('ing-manzanas')) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const demoIds = [
+                      'ing-chamoy', 'ing-chile-polvo', 'ing-pulpa-tamarindo', 'ing-manzanas',
+                      'ing-sandia', 'ing-uvas', 'ing-fruit-foot', 'ing-cacahuates-jap',
+                      'ing-cacahuates-ench', 'ing-churros-maiz', 'ing-elotes', 'ing-gomitas-gusanitos',
+                      'ing-gomitas-panditas', 'ing-gomitas-manguitos', 'ing-gomitas-sandias',
+                      'ing-bolsas-50', 'ing-bolsas-100', 'ing-frascos-180', 'ing-charolas-400',
+                    ];
+                    demoIds.forEach((id) => deleteIngredient(id));
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors ml-auto flex items-center gap-1.5"
+                  title="Eliminar insumos demo de la base de datos"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Eliminar insumos de ejemplo</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -721,7 +749,7 @@ export const AdminInventory: React.FC = () => {
                         <img
                           src={prod.imageUrl}
                           alt={prod.name}
-                          className="w-12 h-12 rounded-xl object-cover bg-slate-100 border border-slate-200 shrink-0"
+                          className="w-12 h-12 rounded-xl object-contain p-0.5 bg-slate-100 border border-slate-200 shrink-0"
                           referrerPolicy="no-referrer"
                           onError={(e) => {
                             (e.target as HTMLElement).style.display = 'none';
@@ -954,7 +982,7 @@ export const AdminInventory: React.FC = () => {
                             <img
                               src={product.imageUrl}
                               alt={product.name}
-                              className="w-10 h-10 rounded-lg object-cover bg-slate-100 shrink-0 border border-slate-200"
+                              className="w-10 h-10 rounded-lg object-contain p-0.5 bg-slate-100 shrink-0 border border-slate-200"
                               referrerPolicy="no-referrer"
                               onError={(e) => {
                                 (e.target as HTMLElement).style.display = 'none';
@@ -1203,6 +1231,31 @@ export const AdminInventory: React.FC = () => {
                   placeholder="Ej. Finca Las Nubes, Distribuidora Central..."
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                 />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1 flex items-center gap-1.5 text-xs">
+                  <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Foto del Insumo (Google Drive o enlace directo)</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={ingImageUrl}
+                    onChange={(e) => setIngImageUrl(e.target.value)}
+                    placeholder="Pega enlace de Google Drive o URL de la imagen..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 text-xs font-medium"
+                  />
+                  {ingImageUrl && (
+                    <div className="w-9 h-9 rounded-lg border border-slate-200 overflow-hidden bg-slate-100 shrink-0 shadow-2xs">
+                      <img
+                        src={normalizeDriveOrDirectUrl(ingImageUrl).normalizedUrl}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">

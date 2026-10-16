@@ -134,7 +134,7 @@ export const GoogleDriveInput: React.FC<GoogleDriveInputProps> = ({
               <img
                 src={result.normalizedUrl}
                 alt="Vista previa"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain p-1 bg-slate-50"
                 onError={() => setImageError(true)}
                 referrerPolicy="no-referrer"
               />

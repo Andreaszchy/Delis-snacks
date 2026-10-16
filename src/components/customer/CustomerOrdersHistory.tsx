@@ -15,6 +15,8 @@ import {
   XCircle,
   Truck,
   MapPin,
+  CreditCard,
+  MessageCircle,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Order, OrderStatus, Appointment, AppointmentStatus } from '../../types';
@@ -47,6 +49,11 @@ export const CustomerOrdersHistory: React.FC = () => {
   const uniqueAppointments = Array.from(new Map(clientAppointments.map((a) => [a.id, a])).values());
   const [ticketOrder, setTicketOrder] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState<'pedidos' | 'citas'>('pedidos');
+  const [showBankInfoMap, setShowBankInfoMap] = useState<Record<string, boolean>>({});
+
+  const toggleBankInfo = (id: string) => {
+    setShowBankInfoMap((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const getOrderStatusBadge = (status: OrderStatus) => {
     switch (status) {
@@ -432,6 +439,51 @@ export const CustomerOrdersHistory: React.FC = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* Bank Transfer Info & WhatsApp Send Receipt Section (Only for pending appointments) */}
+                  {app.status === 'pendiente' && (
+                    <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-2">
+                      <div className="flex items-center justify-between font-bold flex-wrap gap-2">
+                        <span className="flex items-center gap-1.5">
+                          <CreditCard className="w-4 h-4 text-amber-700" />
+                          <span>Pago por Transferencia / Depósito</span>
+                        </span>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleBankInfo(app.id)}
+                            className="px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-amber-900 hover:bg-amber-100 font-bold transition-colors text-[11px]"
+                          >
+                            {showBankInfoMap[app.id] ? 'Ocultar cuenta' : 'Ver datos de tarjeta'}
+                          </button>
+
+                          <a
+                            href={`https://wa.me/526691232954?text=${encodeURIComponent(
+                              `¡Hola! 👋 Ya realicé la transferencia/depósito por el monto de ${businessProfile.currency}${app.totalPrice.toFixed(2)} correspondiente a mi cita *#${app.appointmentNumber}* (${app.serviceName}). Aquí adjunto mi comprobante. ¡Quedo atento!`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-colors flex items-center gap-1 text-[11px] shadow-2xs"
+                            title="Enviar comprobante por WhatsApp"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>Enviar Comprobante WhatsApp</span>
+                          </a>
+                        </div>
+                      </div>
+
+                      {showBankInfoMap[app.id] && (
+                        <div className="bg-white p-3 rounded-xl border border-amber-300 font-mono text-xs space-y-1 text-slate-800 animate-in fade-in">
+                          <p><strong>Tarjeta / CLABE:</strong> 4152 3141 8058 2036</p>
+                          <p><strong>Titular:</strong> Ariana Vianey Ibarra</p>
+                          <p className="text-[10px] text-slate-500 font-sans">
+                            Realiza tu transferencia por <strong>{businessProfile.currency}{app.totalPrice.toFixed(2)}</strong> y pulsa el botón verde para notificar por WhatsApp enviando tu comprobante.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                     <div>

@@ -229,6 +229,9 @@ export function sanitizeProductForFirestore(product: Product): Record<string, an
     stock: Number(product.stock) || 0,
     minStockAlert: Number(product.minStockAlert) || 0,
     imageUrl: product.imageUrl || '',
+    imageFit: product.imageFit || 'cover',
+    imageZoom: typeof product.imageZoom === 'number' ? product.imageZoom : 100,
+    imagePosition: product.imagePosition || 'center',
     isDriveUrl: Boolean(product.isDriveUrl),
     driveRawUrl: product.driveRawUrl || '',
     available: Boolean(product.available),
@@ -299,6 +302,7 @@ export async function upsertIngredientFirestore(ingredient: Ingredient): Promise
       costPerUnit: Number(ingredient.costPerUnit) || 0,
       category: ingredient.category || 'General',
       supplier: ingredient.supplier || '',
+      imageUrl: ingredient.imageUrl || '',
     });
     await setDoc(doc(db, 'ingredients', ingredient.id), payload);
   } catch (error) {

@@ -5,7 +5,6 @@ import {
   INITIAL_APPOINTMENTS,
   INITIAL_BANNERS,
   INITIAL_BUSINESS_PROFILE,
-  INITIAL_INGREDIENTS,
   INITIAL_ORDERS,
   INITIAL_PRODUCTS,
   INITIAL_PROVIDERS,
@@ -283,6 +282,15 @@ interface AppContextType {
     providerId: string,
     modality?: 'local' | 'domicilio'
   ) => string[];
+  getDayAvailabilityStatus: (
+    dateStr: string,
+    providerId?: string
+  ) => {
+    count: number;
+    status: 'green' | 'yellow' | 'red' | 'closed';
+    message: string;
+    isAvailable: boolean;
+  };
 
   // Push Notifications & Notification Center
   notifications: AppNotification[];
@@ -398,12 +406,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       } catch (e) {
         console.error(e);
       }
     }
-    return INITIAL_INGREDIENTS;
+    return [];
   });
 
   useEffect(() => {
@@ -1275,6 +1283,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       saveDayScheduleFirestore(daySchedule).catch(() => {});
       return updated;
     });
+    setProviders(prev => prev.map(p => {
+      const pSched = (p.weeklySchedule || weeklySchedule).map(s => s.dayOfWeek === daySchedule.dayOfWeek ? daySchedule : s);
+      const updatedP = { ...p, weeklySchedule: pSched };
+      upsertProviderFirestore(updatedP).catch(() => {});
+      return updatedP;
+    }));
   };
 
   const updateProviderWeeklySchedule = (providerId: string, newSchedule: DaySchedule[]) => {
@@ -1284,6 +1298,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (target) upsertProviderFirestore(target).catch(() => {});
       return updated;
     });
+    setWeeklySchedule(newSchedule);
+    newSchedule.forEach(day => saveDayScheduleFirestore(day).catch(() => {}));
   };
 
   const [exceptions, setExceptions] = useState<ScheduleException[]>(() => {
@@ -1631,13 +1647,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     maxDay.setHours(23,59,59,999);
     if (targetDate < today || targetDate > maxDay) return [];
 
-    const provider = providers.find(p => p.id === providerId);
+    const effectiveProviderId = providerId || (providers.length > 0 ? providers[0].id : undefined);
+    const provider = effectiveProviderId ? providers.find(p => p.id === effectiveProviderId) : undefined;
     const providerSchedule = provider?.weeklySchedule || weeklySchedule;
     const daySched = providerSchedule.find(s => s.dayOfWeek === dayOfWeek);
     if (!daySched || !daySched.enabled) return [];
 
-    const matchingExceptions = exceptions.filter(e => e.date === dateStr && (e.providerId === 'all' || e.providerId === providerId));
+    const matchingExceptions = exceptions.filter(e => e.date === dateStr && (!effectiveProviderId || e.providerId === 'all' || e.providerId === effectiveProviderId));
     if (matchingExceptions.some(e => e.type === 'bloqueo_total')) return [];
+
+    // Regla de capacidad máxima del negocio: Máximo 2 eventos para el mismo día.
+    // Si se registran 2 eventos para el mismo día, marcar el día como no disponible ([]).
+    // Si alguno de esos dos eventos cancela (status === 'cancelada'), vuelve a amarillo
+    // y se mantiene abierto el horario que se desocupó para ese día.
+    const dayActiveAppointments = appointments.filter((a) => {
+      if (a.status === 'cancelada') return false;
+      const aStart = new Date(a.startTimeUtc);
+      return (
+        aStart.getFullYear() === year &&
+        aStart.getMonth() === month - 1 &&
+        aStart.getDate() === day
+      );
+    });
+
+    if (dayActiveAppointments.length >= 2) {
+      return []; // Día lleno (2 eventos agendados), no disponible
+    }
 
     let startHour = daySched.startTime;
     let endHour = daySched.endTime;
@@ -1723,6 +1758,99 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return slots;
   };
 
+  const getDayAvailabilityStatus = (
+    dateStr: string,
+    providerId?: string
+  ): {
+    count: number;
+    status: 'green' | 'yellow' | 'red' | 'closed';
+    message: string;
+    isAvailable: boolean;
+  } => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const targetDate = new Date(year, month - 1, day);
+    const dayOfWeek = targetDate.getDay();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const maxDay = new Date();
+    maxDay.setDate(maxDay.getDate() + 60);
+    maxDay.setHours(23, 59, 59, 999);
+
+    if (targetDate < today || targetDate > maxDay) {
+      return {
+        count: 0,
+        status: 'closed',
+        message: 'Fecha fuera del rango disponible',
+        isAvailable: false,
+      };
+    }
+
+    const effectiveProviderId = providerId || (providers.length > 0 ? providers[0].id : undefined);
+    const provider = effectiveProviderId ? providers.find((p) => p.id === effectiveProviderId) : undefined;
+    const providerSchedule = provider?.weeklySchedule || weeklySchedule;
+    const daySched = providerSchedule.find((s) => s.dayOfWeek === dayOfWeek);
+
+    if (!daySched || !daySched.enabled) {
+      return {
+        count: 0,
+        status: 'closed',
+        message: 'Día cerrado según horario semanal',
+        isAvailable: false,
+      };
+    }
+
+    const matchingExceptions = exceptions.filter(
+      (e) => e.date === dateStr && (!effectiveProviderId || e.providerId === 'all' || e.providerId === effectiveProviderId)
+    );
+    if (matchingExceptions.some((e) => e.type === 'bloqueo_total')) {
+      return {
+        count: 0,
+        status: 'closed',
+        message: 'Día bloqueado',
+        isAvailable: false,
+      };
+    }
+
+    // Active appointments on this day (excluding cancelled ones)
+    const dayActiveAppointments = appointments.filter((a) => {
+      if (a.status === 'cancelada') return false;
+      const aStart = new Date(a.startTimeUtc);
+      return (
+        aStart.getFullYear() === year &&
+        aStart.getMonth() === month - 1 &&
+        aStart.getDate() === day
+      );
+    });
+
+    const count = dayActiveAppointments.length;
+
+    if (count >= 2) {
+      return {
+        count,
+        status: 'red',
+        message: 'Día no disponible (2 eventos agendados - Cupo lleno)',
+        isAvailable: false,
+      };
+    }
+
+    if (count === 1) {
+      return {
+        count,
+        status: 'yellow',
+        message: '1 evento agendado (Último cupo disponible)',
+        isAvailable: true,
+      };
+    }
+
+    return {
+      count: 0,
+      status: 'green',
+      message: 'Totalmente disponible (0/2 eventos agendados)',
+      isAvailable: true,
+    };
+  };
+
   // Synchronize All Local Data to Firestore on Demand
   const syncAllToFirestore = async () => {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -1788,19 +1916,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     );
 
-    // Subscribe to ingredients directly from database with Delis Snacks fallback & sync
+    // Subscribe to ingredients directly from database (only user-registered ingredients)
     const unsubIngredients = subscribeIngredients(
       (remoteIngredients) => {
         if (!isMounted) return;
-        const hasDelisIng = remoteIngredients.some((i) => i.id.startsWith('ing-chamoy') || i.id.startsWith('ing-manzanas'));
-        if (remoteIngredients.length > 0 && hasDelisIng) {
-          setIngredients(remoteIngredients);
-        } else {
-          setIngredients(INITIAL_INGREDIENTS);
-          INITIAL_INGREDIENTS.forEach((ing) => {
-            upsertIngredientFirestore(ing).catch(() => {});
-          });
-        }
+        setIngredients(remoteIngredients);
         setFirebaseSyncStatus('synced');
       },
       () => {}
@@ -2473,7 +2593,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Reset to default
   const resetToDefaultData = () => {
     setProducts(INITIAL_PRODUCTS);
-    setIngredients(INITIAL_INGREDIENTS);
+    setIngredients([]);
     setBanners(INITIAL_BANNERS);
     setOrders([]);
     setBusinessProfileState(INITIAL_BUSINESS_PROFILE);
@@ -2608,6 +2728,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         markTransferReceiptReceived,
         cancelAppointment,
         getAvailableSlotsForDate,
+        getDayAvailabilityStatus,
         notifications,
         unreadNotificationsCount,
         pushPermission,
