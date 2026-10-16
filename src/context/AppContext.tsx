@@ -1907,10 +1907,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const parsed = JSON.parse(savedUser);
         if (parsed && typeof parsed === 'object') {
           const emailVerified = Boolean(parsed.emailVerified);
+          const dbRole = parsed.role;
           const isAuthorized = parsed.email && emailVerified && isUserAdminEmail(parsed.email);
+          const resolvedRole = dbRole === 'admin' || dbRole === 'client' ? dbRole : (isAuthorized ? 'admin' : 'client');
           const privacyAcceptedAt = parsed.privacyAcceptedAt || storedConsent || undefined;
           return {
-            role: isAuthorized && parsed.role === 'admin' ? 'admin' : 'client',
+            role: resolvedRole,
             name: parsed.name || '',
             phone: parsed.phone || '',
             address: parsed.address || '',
@@ -1942,7 +1944,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [authUid, setAuthUid] = useState<string | null | undefined>(undefined);
 
   const isAdminUser = Boolean(
-    currentUser.isLoggedIn && currentUser.emailVerified && isUserAdminEmail(currentUser.email)
+    currentUser.isLoggedIn && (currentUser.role === 'admin' || (currentUser.emailVerified && isUserAdminEmail(currentUser.email)))
   );
 
   const [authLoading, setAuthLoading] = useState(false);
@@ -1958,12 +1960,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
           const profile = await getUserProfileFirestore(fbUser.uid);
           const emailVerified = Boolean(fbUser.emailVerified);
+          const dbRole = profile?.role;
           const isAuthorizedAdmin = emailVerified && isUserAdminEmail(fbUser.email);
-
-          const savedRole = localStorage.getItem(STORAGE_KEYS.ROLE) as UserRole;
-          const assignedRole: UserRole = isAuthorizedAdmin
-            ? (savedRole === 'client' ? 'client' : 'admin')
-            : 'client';
+          const assignedRole: UserRole = dbRole === 'admin' || dbRole === 'client'
+            ? dbRole
+            : (isAuthorizedAdmin ? 'admin' : 'client');
 
           setCurrentUser((prev) => {
             const isSameUser = Boolean(prev.uid && prev.uid === fbUser.uid);
@@ -2148,7 +2149,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const switchRole = (role: UserRole) => {
     const emailVerified = Boolean(currentUser.emailVerified);
-    const canAccessAdmin = currentUser.isLoggedIn && emailVerified && isUserAdminEmail(currentUser.email);
+    const canAccessAdmin = currentUser.isLoggedIn && (currentUser.role === 'admin' || (emailVerified && isUserAdminEmail(currentUser.email)));
     if (role === 'admin' && !canAccessAdmin) {
       console.warn('Acceso denegado: Solo el administrador asignado puede acceder al panel gerencial.');
       return;

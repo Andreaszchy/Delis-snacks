@@ -952,16 +952,17 @@ export async function loginWithGoogle(): Promise<FirebaseUser> {
     const user = result.user;
     const existing = await getUserProfileFirestore(user.uid);
     const isAdmin = Boolean(user.emailVerified && isUserAdminEmail(user.email));
+    const roleToAssign = existing?.role || (isAdmin ? 'admin' : 'client');
     const localConsent = typeof window !== 'undefined' ? localStorage.getItem('bl_privacy_consent_accepted') : null;
     const privacyAcceptedAt = existing?.privacyAcceptedAt || localConsent || undefined;
     await upsertUserProfileFirestore({
       uid: user.uid,
       email: user.email || '',
-      displayName: user.displayName || existing?.displayName || (isAdmin ? 'Administrador' : 'Cliente'),
+      displayName: user.displayName || existing?.displayName || (roleToAssign === 'admin' ? 'Administrador' : 'Cliente'),
       photoURL: user.photoURL || existing?.photoURL || '',
       phone: existing?.phone || user.phoneNumber || '',
       address: existing?.address || '',
-      role: isAdmin ? 'admin' : 'client',
+      role: roleToAssign,
       privacyAcceptedAt,
       healthConsent: existing?.healthConsent ?? false,
       createdAt: existing?.createdAt || new Date().toISOString(),
@@ -996,15 +997,17 @@ export async function registerWithEmail(email: string, pass: string, displayName
     if (displayName.trim()) {
       await updateProfile(result.user, { displayName: displayName.trim() });
     }
+    const existing = await getUserProfileFirestore(result.user.uid);
     const isAdmin = Boolean(result.user.emailVerified && isUserAdminEmail(result.user.email));
+    const roleToAssign = existing?.role || (isAdmin ? 'admin' : 'client');
     const now = new Date().toISOString();
     await upsertUserProfileFirestore({
       uid: result.user.uid,
       email: result.user.email || email,
-      displayName: displayName.trim() || (isAdmin ? 'Administrador' : 'Cliente'),
+      displayName: displayName.trim() || (roleToAssign === 'admin' ? 'Administrador' : 'Cliente'),
       phone: '',
       address: '',
-      role: isAdmin ? 'admin' : 'client',
+      role: roleToAssign,
       privacyAcceptedAt: now,
       healthConsent: true,
       createdAt: now,
