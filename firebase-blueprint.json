@@ -94,7 +94,8 @@
         "address": { "type": "string", "maxLength": 300 },
         "currentTheme": { "type": "string", "enum": ["default", "rojo", "cafe", "naranja", "rosa", "crema"] },
         "enableStockControl": { "type": "boolean" },
-        "licenseCode": { "type": "string", "maxLength": 100 }
+        "licenseCode": { "type": "string", "maxLength": 100 },
+        "adminEmails": { "type": "array" }
       },
       "required": ["name", "currency", "currentTheme"]
     },
@@ -223,6 +224,10 @@
     "/notifications/{notificationId}": {
       "schema": "Notification",
       "description": "User notifications"
+    },
+    "/admins/{adminId}": {
+      "schema": "UserProfile",
+      "description": "Dynamic administrators registry"
     }
   }
 }

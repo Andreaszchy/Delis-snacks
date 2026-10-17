@@ -100,6 +100,7 @@ export const INITIAL_BUSINESS_PROFILE: BusinessProfile = {
   enableStockControl: true,
   licenseCode: 'LIC-DELISSNACKS-2026',
   customBackgroundColor: '',
+  adminEmails: ['jblackbourne98@gmail.com', 'jorgeandres980706@gmail.com'],
 };
 
 // Sabores de gomitas y dulces enchilados para "¡Ármala a tu gusto!"

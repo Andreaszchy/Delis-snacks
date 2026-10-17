@@ -460,7 +460,7 @@ export const CustomerOrdersHistory: React.FC = () => {
 
                           <a
                             href={`https://wa.me/526691232954?text=${encodeURIComponent(
-                              `¡Hola! 👋 Ya realicé la transferencia/depósito por el monto de ${businessProfile.currency}${app.totalPrice.toFixed(2)} correspondiente a mi cita *#${app.appointmentNumber}* (${app.serviceName}). Aquí adjunto mi comprobante. ¡Quedo atento!`
+                              `¡Hola! 👋 Ya realicé la transferencia/depósito por el anticipo de ${businessProfile.currency}${(app.advancePaymentAmount || app.totalPrice).toFixed(2)} (Total: ${businessProfile.currency}${app.totalPrice.toFixed(2)}) correspondiente a mi cita *#${app.appointmentNumber}* (${app.serviceName}). Aquí adjunto mi comprobante. ¡Quedo atento!`
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -478,7 +478,7 @@ export const CustomerOrdersHistory: React.FC = () => {
                           <p><strong>Tarjeta / CLABE:</strong> 4152 3141 8058 2036</p>
                           <p><strong>Titular:</strong> Ariana Vianey Ibarra</p>
                           <p className="text-[10px] text-slate-500 font-sans">
-                            Realiza tu transferencia por <strong>{businessProfile.currency}{app.totalPrice.toFixed(2)}</strong> y pulsa el botón verde para notificar por WhatsApp enviando tu comprobante.
+                            Realiza tu transferencia por el anticipo de <strong>{businessProfile.currency}{(app.advancePaymentAmount || app.totalPrice).toFixed(2)}</strong> (de un total de {businessProfile.currency}{app.totalPrice.toFixed(2)}) y pulsa el botón verde para notificar por WhatsApp enviando tu comprobante.
                           </p>
                         </div>
                       )}

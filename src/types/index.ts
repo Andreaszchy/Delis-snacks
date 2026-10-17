@@ -272,6 +272,7 @@ export interface Appointment {
   endTimeUtc: string;   // ISO string UTC
   status: AppointmentStatus;
   totalPrice: number;
+  advancePaymentAmount?: number;
   transferReceiptReceived?: boolean;
   paymentReceived?: boolean; // Marcar cobrado
   confirmationType?: ConfirmationType;
@@ -293,6 +294,7 @@ export interface BusinessProfile {
   enableStockControl: boolean;
   licenseCode: string;
   customBackgroundColor?: string;
+  adminEmails?: string[];
 }
 
 export type UserRole = 'admin' | 'client';

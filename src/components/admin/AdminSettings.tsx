@@ -10,6 +10,10 @@ import {
   Coffee,
   Heart,
   Sun,
+  UserPlus,
+  Trash2,
+  Users,
+  Mail,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { GoogleDriveInput } from '../common/GoogleDriveInput';
@@ -33,6 +37,13 @@ export const AdminSettings: React.FC = () => {
   const [currencyCode, setCurrencyCode] = useState(businessProfile.currencyCode);
   const [phone, setPhone] = useState(businessProfile.phone);
   const [address, setAddress] = useState(businessProfile.address);
+  const [adminEmails, setAdminEmails] = useState<string[]>(
+    businessProfile.adminEmails && businessProfile.adminEmails.length > 0
+      ? businessProfile.adminEmails
+      : ['jblackbourne98@gmail.com', 'jorgeandres980706@gmail.com']
+  );
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
 
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -45,7 +56,33 @@ export const AdminSettings: React.FC = () => {
     setCurrencyCode(businessProfile.currencyCode);
     setPhone(businessProfile.phone);
     setAddress(businessProfile.address);
+    if (businessProfile.adminEmails && businessProfile.adminEmails.length > 0) {
+      setAdminEmails(businessProfile.adminEmails);
+    }
   }, [businessProfile]);
+
+  const handleAddAdminEmail = () => {
+    setEmailError('');
+    const clean = newAdminEmail.trim().toLowerCase();
+    if (!clean || !clean.includes('@') || !clean.includes('.')) {
+      setEmailError('Ingresa un correo electrónico válido');
+      return;
+    }
+    if (adminEmails.some((e) => e.toLowerCase() === clean)) {
+      setEmailError('Este correo ya está en la lista de administradores');
+      return;
+    }
+    setAdminEmails([...adminEmails, clean]);
+    setNewAdminEmail('');
+  };
+
+  const handleRemoveAdminEmail = (emailToRemove: string) => {
+    if (adminEmails.length <= 1) {
+      setEmailError('Debe existir al menos un administrador en el sistema');
+      return;
+    }
+    setAdminEmails(adminEmails.filter((e) => e.toLowerCase() !== emailToRemove.toLowerCase()));
+  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +95,7 @@ export const AdminSettings: React.FC = () => {
       currencyCode: currencyCode.trim() || 'MXN',
       phone: phone.trim(),
       address: address.trim(),
+      adminEmails: adminEmails.map((e) => e.trim().toLowerCase()).filter(Boolean),
     });
 
     setSavedSuccess(true);
@@ -245,6 +283,94 @@ export const AdminSettings: React.FC = () => {
               placeholder="https://drive.google.com/file/d/... o https://..."
               helperText="Pega el enlace compartido de Google Drive de tu logotipo para normalizarlo automáticamente y mostrarlo en la barra superior."
             />
+          </div>
+
+          {/* Gestión Dinámica de Administradores */}
+          <div className="sm:col-span-2 pt-4 border-t border-slate-200">
+            <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/90 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">
+                      Administradores Autorizados (Acceso Gerencial)
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Gestiona quién tiene permisos de administración. Si cambia el dueño o se añade un socio, solo añade su correo aquí sin necesidad de editar ni republicar reglas de Firestore.
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200 text-slate-700 font-mono shrink-0">
+                  {adminEmails.length} admin{adminEmails.length === 1 ? '' : 's'}
+                </span>
+              </div>
+
+              {/* Add Admin Email Input */}
+              <div className="flex items-center gap-2 pt-1">
+                <div className="relative flex-1">
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    value={newAdminEmail}
+                    onChange={(e) => {
+                      setNewAdminEmail(e.target.value);
+                      setEmailError('');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddAdminEmail();
+                      }
+                    }}
+                    placeholder="nuevo.administrador@gmail.com"
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddAdminEmail}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-xs flex items-center gap-1.5 transition-all shrink-0 active:scale-95"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Añadir</span>
+                </button>
+              </div>
+
+              {emailError && (
+                <p className="text-xs font-semibold text-rose-600 bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 animate-in fade-in">
+                  {emailError}
+                </p>
+              )}
+
+              {/* Admin Emails List */}
+              <div className="space-y-1.5 pt-1">
+                {adminEmails.map((email) => (
+                  <div
+                    key={email}
+                    className="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="font-semibold text-slate-800 truncate font-mono">{email}</span>
+                    </div>
+                    {adminEmails.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAdminEmail(email)}
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
+                        title="Quitar acceso de administrador"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 font-medium italic">Principal</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 

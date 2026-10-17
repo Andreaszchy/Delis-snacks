@@ -71,6 +71,7 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
   const [showBankInfo, setShowBankInfo] = useState<boolean>(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(Boolean(currentUser?.privacyAcceptedAt));
   const [healthConsent, setHealthConsent] = useState(Boolean(currentUser?.healthConsent));
+  const [advancePaymentType, setAdvancePaymentType] = useState<'min500' | 'half' | 'full'>('half');
 
   // Opciones personalizables seleccionadas: groupId -> array de optionIds
   const [selections, setSelections] = useState<Record<string, string[]>>({});
@@ -129,6 +130,7 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
     modality: string;
     selectedOptions?: SelectedOptionItem[];
     nightSurcharge?: number;
+    advancePaymentAmount?: number;
   } | null>(null);
 
   // Sync selected service
@@ -274,6 +276,13 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
     setSubmitting(true);
     setBookingError(null);
     try {
+      const advanceAmount =
+        advancePaymentType === 'min500'
+          ? Math.max(500, totalServiceEstimatedPrice > 0 ? Math.min(500, totalServiceEstimatedPrice) : 500)
+          : advancePaymentType === 'half'
+          ? totalServiceEstimatedPrice / 2
+          : totalServiceEstimatedPrice;
+
       const newApp = await createAppointment({
         serviceId: selectedServiceId,
         providerId: selectedProviderId || (providers[0]?.id || 'prov-1'),
@@ -287,6 +296,7 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
         timeStr: selectedTime,
         privacyAcceptedAt: new Date().toISOString(),
         healthConsent,
+        advancePaymentAmount: advanceAmount,
       });
 
       setSuccessApp({
@@ -298,6 +308,7 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
         modality: 'local',
         selectedOptions: flatSelectedList,
         nightSurcharge: newApp.nightSurcharge,
+        advancePaymentAmount: newApp.advancePaymentAmount,
       });
 
       // Guardar teléfono y nombre en el perfil del cliente para reutilizarlo en futuras citas/pedidos
@@ -409,10 +420,10 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
                   <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
                   <span>Pago por Transferencia / Depósito Pendiente</span>
                 </div>
-                <p>Para confirmar tu evento a domicilio, realiza tu pago a la tarjeta <strong>4152314180582036</strong> (Ariana Vianey Ibarra) por un total de <strong>{businessProfile.currency}{successApp.totalPrice.toFixed(2)}</strong>.</p>
+                <p>Para confirmar tu evento, realiza tu pago del anticipo por <strong>{businessProfile.currency}{(successApp.advancePaymentAmount || successApp.totalPrice).toFixed(2)}</strong> (de un total de {businessProfile.currency}{successApp.totalPrice.toFixed(2)}) a la tarjeta <strong>4152314180582036</strong> (Ariana Vianey Ibarra).</p>
                 <a
                   href={`https://wa.me/526691232954?text=${encodeURIComponent(
-                    `Adjunto comprobante de la solicitud de servicio de ${activeService?.name || 'barra'} con id: ${successApp.number}`
+                    `¡Hola! 👋 Ya realicé la transferencia/depósito por el anticipo de ${businessProfile.currency}${(successApp.advancePaymentAmount || successApp.totalPrice).toFixed(2)} correspondiente a mi cita *#${successApp.number}*. Aquí adjunto mi comprobante. ¡Quedo atento!`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -510,7 +521,13 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-[11px]">
                       <span className="inline-flex items-center gap-1 font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
                         <Home className="w-3.5 h-3.5 text-rose-600" />
-                        <span>En Local / Mostrador</span>
+                        <span>
+                          {activeService.modality === 'domicilio'
+                            ? 'A Domicilio / Evento'
+                            : activeService.modality === 'ambas'
+                            ? 'Local y A Domicilio'
+                            : 'En Local / Mostrador'}
+                        </span>
                       </span>
 
                       {activeService.confirmationType === 'automatica' ? (
@@ -810,10 +827,73 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
                     <div className="bg-white p-3 rounded-xl border border-amber-200 font-mono text-xs space-y-1 text-slate-800 animate-in fade-in">
                       <p><strong>Tarjeta / Cuenta:</strong> 4152 3141 8058 2036</p>
                       <p><strong>Titular:</strong> Ariana Vianey Ibarra</p>
-                      <p className="text-[10px] text-slate-500 font-sans">Realiza tu transferencia por el monto total y envía tu comprobante por WhatsApp al finalizar.</p>
+                      <p className="text-[10px] text-slate-500 font-sans">Realiza tu transferencia por el monto seleccionado y envía tu comprobante por WhatsApp al finalizar.</p>
                     </div>
                   )}
                 </div>
+
+                {/* Anticipo / Modalidad de Pago */}
+                {activeService?.priceType !== 'a_cotizar' && totalServiceEstimatedPrice > 0 && (
+                  <div className="space-y-2 p-3.5 bg-slate-50 rounded-2xl border border-slate-200 shadow-2xs">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <span>💳</span> Selecciona el Monto de Anticipo para Confirmar
+                    </label>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      {/* Mínimo $500 */}
+                      <button
+                        type="button"
+                        onClick={() => setAdvancePaymentType('min500')}
+                        className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 ${
+                          advancePaymentType === 'min500'
+                            ? 'border-rose-600 bg-rose-50 text-slate-900 ring-1 ring-rose-600 shadow-2xs'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold uppercase text-slate-500">Mínimo</span>
+                        <span className="font-extrabold text-xs sm:text-sm font-mono text-slate-900">
+                          {businessProfile.currency}500
+                        </span>
+                      </button>
+
+                      {/* La Mitad (50%) */}
+                      <button
+                        type="button"
+                        onClick={() => setAdvancePaymentType('half')}
+                        className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 ${
+                          advancePaymentType === 'half'
+                            ? 'border-rose-600 bg-rose-50 text-slate-900 ring-1 ring-rose-600 shadow-2xs'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold uppercase text-slate-500">La Mitad (50%)</span>
+                        <span className="font-extrabold text-xs sm:text-sm font-mono text-slate-900">
+                          {businessProfile.currency}{(totalServiceEstimatedPrice / 2).toFixed(2)}
+                        </span>
+                      </button>
+
+                      {/* Pago Completo (100%) */}
+                      <button
+                        type="button"
+                        onClick={() => setAdvancePaymentType('full')}
+                        className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 ${
+                          advancePaymentType === 'full'
+                            ? 'border-rose-600 bg-rose-50 text-slate-900 ring-1 ring-rose-600 shadow-2xs'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold uppercase text-slate-500">Completo</span>
+                        <span className="font-extrabold text-xs sm:text-sm font-mono text-slate-900">
+                          {businessProfile.currency}{totalServiceEstimatedPrice.toFixed(2)}
+                        </span>
+                      </button>
+                    </div>
+
+                    <p className="text-[10px] text-slate-500 italic text-center pt-0.5">
+                      Restante se liquida el día del evento o servicio.
+                    </p>
+                  </div>
+                )}
 
                 {currentUser.isLoggedIn && (
                   <label className="flex items-center gap-2 cursor-pointer text-[11px] text-slate-600 select-none">

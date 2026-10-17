@@ -92,7 +92,6 @@ import {
   upsertUserProfileFirestore,
   onAuthStateChanged,
   isUserAdminEmail,
-  ADMIN_EMAILS,
   cleanObject,
   reauthenticateWithPopup,
   reauthenticateWithCredential,
@@ -272,6 +271,7 @@ interface AppContextType {
     timeStr: string;
     privacyAcceptedAt?: string;
     healthConsent?: boolean;
+    advancePaymentAmount?: number;
   }) => Promise<Appointment>;
   updateAppointmentStatus: (id: string, status: AppointmentStatus) => void;
   deleteAppointment: (id: string) => void;
@@ -470,7 +470,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return ing;
       });
       const target = updated.find((i) => i.id === id);
-      if (target) {
+      const isManager = currentUser.role === 'admin' || isUserAdminEmail(currentUser.email, businessProfile.adminEmails);
+      if (target && isManager) {
         upsertIngredientFirestore(target).catch((err) => console.warn('Firestore adjustIngredientStock error:', err));
       }
       return updated;
@@ -562,7 +563,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return p;
       });
       const target = updated.find((p) => p.id === id);
-      if (target) {
+      const isManager = currentUser.role === 'admin' || isUserAdminEmail(currentUser.email, businessProfile.adminEmails);
+      if (target && isManager) {
         upsertProductFirestore(target).catch((err) => console.warn('Firestore adjustStock error:', err));
       }
       return updated;
@@ -750,6 +752,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 2. Relación Many-to-Many: Descontar stock central de ingredientes según la receta (ingredientDeductions already computed above)
 
     // Aplicar los descuentos al catálogo central de ingredientes
+    const isManagerOrder = currentUser.role === 'admin' || isUserAdminEmail(currentUser.email, businessProfile.adminEmails);
     if (Object.keys(ingredientDeductions).length > 0) {
       setIngredients((prev) =>
         prev.map((ing) => {
@@ -757,7 +760,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (toDeduct && toDeduct > 0) {
             const updatedStock = Math.max(0, ing.stock - toDeduct);
             const updated = { ...ing, stock: updatedStock };
-            upsertIngredientFirestore(updated).catch(() => {});
+            if (isManagerOrder) {
+              upsertIngredientFirestore(updated).catch(() => {});
+            }
             return updated;
           }
           return ing;
@@ -1370,6 +1375,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     timeStr: string;
     privacyAcceptedAt?: string;
     healthConsent?: boolean;
+    advancePaymentAmount?: number;
   }): Promise<Appointment> => {
     if (!currentUser.isLoggedIn) {
       setIsAuthModalOpen(true);
@@ -1381,18 +1387,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       services[0];
 
     const service = foundService || {
-      id: data.serviceId || 'serv-limpieza-espalda',
-      name: 'Limpieza profunda en espalda',
-      description: 'Tratamiento en cabina',
-      price: 450,
+      id: data.serviceId || 'serv-barra-snacks',
+      name: 'Barra de Snacks para Eventos (Delis Bar)',
+      description: 'Montaje de barra interactiva de botanas mexicanas, gomitas enchiladas y fruta con chamoy para fiestas y eventos.',
+      price: 1500,
       priceType: 'fijo' as const,
-      durationMinutes: 60,
-      bufferMinutes: 15,
+      durationMinutes: 120,
+      bufferMinutes: 30,
       modality: 'local' as const,
       travelSurcharge: 0,
       travelTimeMinutes: 0,
       roundTripTravel: false,
-      maxHomeZoneKm: 10,
+      maxHomeZoneKm: 15,
       confirmationType: 'automatica' as const,
       hybridHoursThreshold: 6,
       providerResponseDeadlineMinutes: 120,
@@ -1404,8 +1410,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const provider = providers.find((p) => p.id === data.providerId) || providers[0] || {
       id: 'prov-1',
-      name: 'Nathaly Ibarra',
-      role: 'Terapeuta & Especialista Principal',
+      name: 'Equipo Delis Snacks',
+      role: 'Atención al Cliente & Eventos',
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
       active: true,
       weeklySchedule: INITIAL_WEEKLY_SCHEDULE,
     };
@@ -1524,6 +1531,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       endTimeUtc: endDate.toISOString(),
       status,
       totalPrice: Number(totalPrice) || 0,
+      advancePaymentAmount: Number(data.advancePaymentAmount) || Number(totalPrice) || 0,
       confirmationType: servObj && servObj.confirmationType ? servObj.confirmationType : 'automatica',
       providerResponseDeadlineUtc,
       minCancellationHours: Number(servObj?.minCancellationHours || 4),

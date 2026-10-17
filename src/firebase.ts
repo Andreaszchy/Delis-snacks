@@ -944,15 +944,33 @@ export async function upsertUserProfileFirestore(profile: Partial<UserProfile> &
   }
 }
 
-// Administrator authorized emails
-export const ADMIN_EMAILS = [
-  'jorgeandres980706@gmail.com',
-  'jblackbourne98@gmail.com',
-];
-
-export function isUserAdminEmail(email?: string | null): boolean {
+// Dynamic administrator verification (supports customAdminEmails and business profile)
+export function isUserAdminEmail(email?: string | null, customAdminEmails?: string[]): boolean {
   if (!email) return false;
-  return ADMIN_EMAILS.some((adminEmail) => adminEmail.toLowerCase() === email.toLowerCase().trim());
+  const cleanEmail = email.toLowerCase().trim();
+  
+  if (Array.isArray(customAdminEmails) && customAdminEmails.length > 0) {
+    if (customAdminEmails.some((adminEmail) => adminEmail.toLowerCase().trim() === cleanEmail)) {
+      return true;
+    }
+  }
+
+  // Check stored business profile in localStorage
+  if (typeof window !== 'undefined') {
+    try {
+      const savedProfile = localStorage.getItem('bl_business_profile');
+      if (savedProfile) {
+        const parsed = JSON.parse(savedProfile);
+        if (Array.isArray(parsed?.adminEmails) && parsed.adminEmails.some((e: string) => e.toLowerCase().trim() === cleanEmail)) {
+          return true;
+        }
+      }
+    } catch {}
+  }
+
+  // Fallback bootstrap list
+  const bootstrapAdmins = ['jblackbourne98@gmail.com', 'jorgeandres980706@gmail.com'];
+  return bootstrapAdmins.some((adminEmail) => adminEmail.toLowerCase() === cleanEmail);
 }
 
 // Provider instance

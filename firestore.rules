@@ -7,10 +7,26 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Dynamic Role-Based Access Control (Zero hardcoded emails)
     function isAdmin() {
-      return isSignedIn()
-        && request.auth.token.email_verified == true
-        && request.auth.token.email.lower() in ['jorgeandres980706@gmail.com', 'jblackbourne98@gmail.com'];
+      return isSignedIn() && (
+        // 1. Custom Claims (Auth Token claims set by backend/console)
+        request.auth.token.role == 'admin' ||
+        request.auth.token.admin == true ||
+        // 2. User profile document in Firestore with role == 'admin'
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+        // 3. Dynamic Admins collection by UID
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        // 4. Dynamic Admins collection by normalized email
+        (request.auth.token.email != null &&
+         exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()))) ||
+        // 5. Dynamic adminEmails configured in the business profile document
+        (exists(/databases/$(database)/documents/business_profiles/main) &&
+         request.auth.token.email != null &&
+         'adminEmails' in get(/databases/$(database)/documents/business_profiles/main).data &&
+         request.auth.token.email.lower() in get(/databases/$(database)/documents/business_profiles/main).data.adminEmails)
+      );
     }
 
     function isOwner() {
@@ -96,17 +112,17 @@ service cloud.firestore {
              data.endTimeUtc is string && data.endTimeUtc.size() <= 50;
     }
 
-    // Products collection: Manager can modify catalog; signed-in users can decrement stock on purchase
+    // Products collection: Only managers/admins can modify catalog and stock (eliminates client-side inventory tampering)
     match /products/{productId} {
       allow get, list: if true;
-      allow create, update: if (isAdmin() || (isSignedIn() && incoming().stock <= existing().stock && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']))) && isValidId(productId) && isValidProduct(incoming());
+      allow create, update: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
       allow delete: if isAdmin() && isValidId(productId);
     }
 
-    // Ingredients collection: Manager can modify inventory; signed-in users can decrement stock on purchase
+    // Ingredients collection: Only managers/admins can modify inventory (eliminates client-side inventory tampering)
     match /ingredients/{ingredientId} {
       allow get, list: if true;
-      allow create, update: if (isAdmin() || (isSignedIn() && incoming().stock <= existing().stock && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']))) && isValidId(ingredientId) && isValidIngredient(incoming());
+      allow create, update: if isAdmin() && isValidId(ingredientId) && isValidIngredient(incoming());
       allow delete: if isAdmin() && isValidId(ingredientId);
     }
 
@@ -176,6 +192,13 @@ service cloud.firestore {
       allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role','uid']));
       allow delete: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+    }
+
+    // Admins collection: Dynamic administrators registry (no redeploy needed when business owner changes)
+    match /admins/{adminId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin() && isValidId(adminId);
     }
 
     // Busy slots collection: 100% anonymous schedule availability without personal customer data or appointment/customer links

@@ -1,6 +1,8 @@
 {
-  "name": "Remix Spa Nath",
-  "description": "Sistema White-Label de gestión comercial, catálogo interactivo, ventas, inventario y logística de envíos para licenciar a múltiples negocios.",
+  "name": "Delis Snacks",
+  "description": "Sistema de gestión comercial, pedidos, logística de envíos, inventario de insumos y agenda de eventos para Delis Snacks.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
