@@ -97,7 +97,7 @@ export const CustomerProfileView: React.FC = () => {
       {/* 1. Header Card: Logged in or Guest */}
       {currentUser.isLoggedIn ? (
         <div className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-center sm:items-start gap-5">
-          {currentUser.photoUrl ? (
+          {Boolean(currentUser.photoUrl && currentUser.photoUrl.trim()) ? (
             <img
               src={currentUser.photoUrl}
               alt={currentUser.name}

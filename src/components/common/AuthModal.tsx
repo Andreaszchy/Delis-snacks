@@ -148,7 +148,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-sm overflow-hidden relative shrink-0 shadow-xs">
               <span>{businessProfile.name ? businessProfile.name.charAt(0).toUpperCase() : 'N'}</span>
-              {businessProfile.logoUrl && (
+              {Boolean(businessProfile.logoUrl && businessProfile.logoUrl.trim()) && (
                 <img
                   src={businessProfile.logoUrl}
                   alt={businessProfile.name || 'Negocio'}
@@ -185,7 +185,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             <div className={`p-4 rounded-2xl border ${isAdminUser ? 'bg-indigo-50/70 border-indigo-200' : 'bg-emerald-50/50 border-emerald-100'}`}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  {currentUser.photoUrl ? (
+                  {Boolean(currentUser.photoUrl && currentUser.photoUrl.trim()) ? (
                     <img
                       src={currentUser.photoUrl}
                       alt={currentUser.name}

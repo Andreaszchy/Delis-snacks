@@ -18,11 +18,24 @@ import { PromoBannerCarousel } from './PromoBannerCarousel';
 export const CustomerCatalogView: React.FC = () => {
   const { products, services, openProductModal, openBookingModal, businessProfile, theme } = useApp();
 
-  // Accordion collapsed state per category (default true = collapsed/hidden)
-  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  // Categorías de servicios: ABIERTAS / DESPLEGADAS por defecto (default false = open)
+  const [collapsedServiceCategories, setCollapsedServiceCategories] = useState<Record<string, boolean>>({});
 
-  const toggleCategory = (cat: string) => {
-    setCollapsedCategories((prev) => {
+  // Categorías de productos: CERRADAS / NO DESPLEGADAS por defecto (default true = closed)
+  const [collapsedProductCategories, setCollapsedProductCategories] = useState<Record<string, boolean>>({});
+
+  const toggleServiceCategory = (cat: string) => {
+    setCollapsedServiceCategories((prev) => {
+      const currentlyCollapsed = prev[cat] ?? false;
+      return {
+        ...prev,
+        [cat]: !currentlyCollapsed,
+      };
+    });
+  };
+
+  const toggleProductCategory = (cat: string) => {
+    setCollapsedProductCategories((prev) => {
       const currentlyCollapsed = prev[cat] ?? true;
       return {
         ...prev,
@@ -79,21 +92,27 @@ export const CustomerCatalogView: React.FC = () => {
             product.imageFit === 'contain' ? 'bg-slate-50' : 'bg-slate-100'
           } flex items-center justify-center overflow-hidden`}
         >
-          <img
-            src={product.imageUrl}
-            alt={product.name}
-            className={`w-full h-full ${
-              product.imageFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'
-            } group-hover:scale-105 transition-transform duration-500`}
-            style={{
-              transform: `scale(${(product.imageZoom || 100) / 100})`,
-              objectPosition: product.imagePosition || 'center',
-            }}
-            referrerPolicy="no-referrer"
-            onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none';
-            }}
-          />
+          {Boolean(product.imageUrl && product.imageUrl.trim()) ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className={`w-full h-full ${
+                product.imageFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'
+              } group-hover:scale-105 transition-transform duration-500`}
+              style={{
+                transform: `scale(${(product.imageZoom || 100) / 100})`,
+                objectPosition: product.imagePosition || 'center',
+              }}
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs font-medium">
+              <span>{product.name}</span>
+            </div>
+          )}
 
           <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
             <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/90 text-slate-900 backdrop-blur-xs shadow-2xs">
@@ -165,21 +184,27 @@ export const CustomerCatalogView: React.FC = () => {
               service.imageFit === 'contain' ? 'bg-slate-50' : 'bg-slate-100'
             } flex items-center justify-center overflow-hidden`}
           >
-            <img
-              src={service.imageUrl}
-              alt={service.name}
-              className={`w-full h-full ${
-                service.imageFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'
-              } group-hover:scale-105 transition-transform duration-500`}
-              style={{
-                transform: `scale(${(service.imageZoom || 100) / 100})`,
-                objectPosition: service.imagePosition || 'center',
-              }}
-              referrerPolicy="no-referrer"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
+            {Boolean(service.imageUrl && service.imageUrl.trim()) ? (
+              <img
+                src={service.imageUrl}
+                alt={service.name}
+                className={`w-full h-full ${
+                  service.imageFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'
+                } group-hover:scale-105 transition-transform duration-500`}
+                style={{
+                  transform: `scale(${(service.imageZoom || 100) / 100})`,
+                  objectPosition: service.imagePosition || 'center',
+                }}
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs font-medium">
+                <span>{service.name}</span>
+              </div>
+            )}
 
             {/* Badges */}
             <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
@@ -338,13 +363,13 @@ export const CustomerCatalogView: React.FC = () => {
         ) : (
           <div className="space-y-6">
             {Object.entries(servicesByCategory).map(([categoryName, catServices]) => {
-              const isCollapsed = collapsedCategories[categoryName] ?? true;
+              const isCollapsed = collapsedServiceCategories[categoryName] ?? false;
               return (
                 <div key={categoryName} className="bg-slate-50/70 rounded-3xl border border-slate-200/80 overflow-hidden shadow-2xs">
                   {/* Category Header (Clickable Collapsible) */}
                   <button
                     type="button"
-                    onClick={() => toggleCategory(categoryName)}
+                    onClick={() => toggleServiceCategory(categoryName)}
                     className="w-full px-5 py-4 flex items-center justify-between bg-white hover:bg-slate-50 transition-colors text-left"
                   >
                     <div className="flex items-center gap-2.5">
@@ -398,13 +423,13 @@ export const CustomerCatalogView: React.FC = () => {
         ) : (
           <div className="space-y-6">
             {Object.entries(productsByCategory).map(([categoryName, catProducts]) => {
-              const isCollapsed = collapsedCategories[categoryName] ?? false;
+              const isCollapsed = collapsedProductCategories[categoryName] ?? true;
               return (
                 <div key={categoryName} className="bg-slate-50/70 rounded-3xl border border-slate-200/80 overflow-hidden shadow-2xs">
                   {/* Category Header (Clickable Collapsible) */}
                   <button
                     type="button"
-                    onClick={() => toggleCategory(categoryName)}
+                    onClick={() => toggleProductCategory(categoryName)}
                     className="w-full px-5 py-4 flex items-center justify-between bg-white hover:bg-slate-50 transition-colors text-left"
                   >
                     <div className="flex items-center gap-2.5">

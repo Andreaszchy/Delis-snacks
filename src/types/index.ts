@@ -273,6 +273,7 @@ export interface Appointment {
   status: AppointmentStatus;
   totalPrice: number;
   transferReceiptReceived?: boolean;
+  paymentReceived?: boolean; // Marcar cobrado
   confirmationType?: ConfirmationType;
   providerResponseDeadlineUtc?: string; // deadline timestamp in UTC
   minCancellationHours?: number;

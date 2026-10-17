@@ -70,16 +70,20 @@ export const PromoBannerCarousel: React.FC = () => {
     <div className="relative rounded-2xl overflow-hidden shadow-sm border border-slate-200/80 bg-slate-900 text-white group">
       {/* Background Image with Contrast Scrim */}
       <div className="relative aspect-[16/8] sm:aspect-[21/9] md:aspect-[24/9] w-full overflow-hidden">
-        <img
-          src={currentBanner.imageUrl}
-          alt={currentBanner.title}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-          referrerPolicy="no-referrer"
-          onError={(e) => {
-            // CSS gradient fallback if custom image fails
-            (e.target as HTMLElement).style.display = 'none';
-          }}
-        />
+        {Boolean(currentBanner.imageUrl && currentBanner.imageUrl.trim()) ? (
+          <img
+            src={currentBanner.imageUrl}
+            alt={currentBanner.title}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              // CSS gradient fallback if custom image fails
+              (e.target as HTMLElement).style.display = 'none';
+            }}
+          />
+        ) : (
+          <div className="w-full h-full bg-slate-800" />
+        )}
         {/* Measured Contrast Scrim */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/30" />
 

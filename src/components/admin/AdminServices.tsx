@@ -32,12 +32,12 @@ export const AdminServices: React.FC = () => {
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
 
-  // Accordion collapsed state per category (default true = collapsed/hidden)
+  // Accordion collapsed state per category (default false = open / desplegado)
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
 
   const toggleCategory = (cat: string) => {
     setCollapsedCategories((prev) => {
-      const currentlyCollapsed = prev[cat] ?? true;
+      const currentlyCollapsed = prev[cat] ?? false;
       return {
         ...prev,
         [cat]: !currentlyCollapsed,
@@ -340,7 +340,7 @@ export const AdminServices: React.FC = () => {
       ) : (
         <div className="space-y-6">
           {Object.entries(servicesByCategory).map(([categoryName, catServices]) => {
-            const isCollapsed = collapsedCategories[categoryName] ?? true;
+            const isCollapsed = collapsedCategories[categoryName] ?? false;
             return (
               <div key={categoryName} className="bg-slate-50/70 rounded-3xl border border-slate-200/80 overflow-hidden shadow-2xs">
                 {/* Category Header (Clickable Collapsible) */}
@@ -386,21 +386,27 @@ export const AdminServices: React.FC = () => {
                               serv.imageFit === 'contain' ? 'bg-slate-50' : 'bg-slate-100'
                             } flex items-center justify-center overflow-hidden`}
                           >
-                            <img
-                              src={serv.imageUrl}
-                              alt={serv.name}
-                              className={`w-full h-full ${
-                                serv.imageFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'
-                              }`}
-                              style={{
-                                transform: `scale(${(serv.imageZoom || 100) / 100})`,
-                                objectPosition: serv.imagePosition || 'center',
-                              }}
-                              referrerPolicy="no-referrer"
-                              onError={(e) => {
-                                (e.target as HTMLElement).style.display = 'none';
-                              }}
-                            />
+                            {Boolean(serv.imageUrl && serv.imageUrl.trim()) ? (
+                              <img
+                                src={serv.imageUrl}
+                                alt={serv.name}
+                                className={`w-full h-full ${
+                                  serv.imageFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'
+                                }`}
+                                style={{
+                                  transform: `scale(${(serv.imageZoom || 100) / 100})`,
+                                  objectPosition: serv.imagePosition || 'center',
+                                }}
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs font-medium">
+                                <span>{serv.name}</span>
+                              </div>
+                            )}
                             <div className="absolute top-2.5 left-2.5 flex items-center gap-1 flex-wrap">
                               <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-white/90 text-slate-900">
                                 {serv.category}
@@ -803,7 +809,7 @@ export const AdminServices: React.FC = () => {
                             className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500"
                           />
                           <div className="flex items-center gap-2 min-w-0">
-                            {prov.avatarUrl ? (
+                            {Boolean(prov.avatarUrl && prov.avatarUrl.trim()) ? (
                               <img src={prov.avatarUrl} alt={prov.name} className="w-6 h-6 rounded-full object-cover shrink-0" />
                             ) : (
                               <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold">
@@ -1022,10 +1028,10 @@ export const AdminServices: React.FC = () => {
                                   placeholder="Foto de la opción (enlace de Google Drive o URL)..."
                                   className="w-full px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium text-slate-800"
                                 />
-                                {opt.imageUrl && (
+                                {Boolean(normalizeDriveOrDirectUrl(opt.imageUrl || '').normalizedUrl) && (
                                   <div className="w-6 h-6 rounded-md border border-slate-200 overflow-hidden bg-slate-100 shrink-0">
                                     <img
-                                      src={normalizeDriveOrDirectUrl(opt.imageUrl).normalizedUrl}
+                                      src={normalizeDriveOrDirectUrl(opt.imageUrl || '').normalizedUrl}
                                       alt={opt.name}
                                       className="w-full h-full object-contain p-0.5"
                                     />

@@ -726,6 +726,15 @@ export async function updateAppointmentReceiptFirestore(appId: string, received:
   }
 }
 
+export async function updateAppointmentPaymentFirestore(appId: string, paymentReceived: boolean): Promise<void> {
+  const path = `appointments/${appId}`;
+  try {
+    await setDoc(doc(db, 'appointments', appId), { paymentReceived }, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
 export async function deleteAppointmentFirestore(appId: string): Promise<void> {
   const path = `appointments/${appId}`;
   try {

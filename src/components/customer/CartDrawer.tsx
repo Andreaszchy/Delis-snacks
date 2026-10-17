@@ -453,15 +453,21 @@ export const CartDrawer: React.FC = () => {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <img
-                        src={item.imageUrl}
-                        alt={item.productName}
-                        className="w-12 h-12 rounded-lg object-contain p-0.5 bg-slate-50 border border-slate-200 shrink-0"
-                        referrerPolicy="no-referrer"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
-                        }}
-                      />
+                      {Boolean(item.imageUrl && item.imageUrl.trim()) ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.productName}
+                          className="w-12 h-12 rounded-lg object-contain p-0.5 bg-slate-50 border border-slate-200 shrink-0"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center text-[10px] font-bold text-slate-400">
+                          {item.productName.charAt(0)}
+                        </div>
+                      )}
                       <div className="min-w-0">
                         <h4 className="font-bold text-slate-900 truncate text-xs sm:text-sm">
                           {item.productName}

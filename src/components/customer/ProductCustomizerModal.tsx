@@ -171,7 +171,7 @@ export const ProductCustomizerModal: React.FC = () => {
               <p className="text-slate-500">{product.name}</p>
             </div>
             <div className="w-full bg-slate-50 p-4 rounded-2xl flex items-center gap-4 text-left">
-              {product.imageUrl && <img src={product.imageUrl} alt={product.name} className="w-16 h-16 rounded-xl object-cover" />}
+              {Boolean(product.imageUrl && product.imageUrl.trim()) && <img src={product.imageUrl} alt={product.name} className="w-16 h-16 rounded-xl object-cover" />}
               <div>
                 <p className="font-bold text-slate-900">{product.name}</p>
                 <p className="text-sm text-slate-500">{quantity} x {businessProfile.currency}{unitPrice}</p>
@@ -201,16 +201,30 @@ export const ProductCustomizerModal: React.FC = () => {
                 </button>
 
                 {/* Product Image respecting custom framing and zoom */}
-                {product.imageFit === 'contain' ? (
-                  <>
-                    <div 
-                      className="absolute inset-0 bg-cover bg-center blur-md opacity-25 scale-110 pointer-events-none"
-                      style={{ backgroundImage: `url(${product.imageUrl})` }}
-                    />
+                {Boolean(product.imageUrl && product.imageUrl.trim()) ? (
+                  product.imageFit === 'contain' ? (
+                    <>
+                      <div 
+                        className="absolute inset-0 bg-cover bg-center blur-md opacity-25 scale-110 pointer-events-none"
+                        style={{ backgroundImage: `url(${product.imageUrl})` }}
+                      />
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="relative z-10 w-full h-full object-contain p-2 sm:p-3 transition-transform duration-500 hover:scale-105"
+                        style={{
+                          transform: `scale(${(product.imageZoom || 100) / 100})`,
+                          objectPosition: product.imagePosition || 'center',
+                        }}
+                        referrerPolicy="no-referrer"
+                        onError={() => setImageError(true)}
+                      />
+                    </>
+                  ) : (
                     <img
                       src={product.imageUrl}
                       alt={product.name}
-                      className="relative z-10 w-full h-full object-contain p-2 sm:p-3 transition-transform duration-500 hover:scale-105"
+                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                       style={{
                         transform: `scale(${(product.imageZoom || 100) / 100})`,
                         objectPosition: product.imagePosition || 'center',
@@ -218,19 +232,11 @@ export const ProductCustomizerModal: React.FC = () => {
                       referrerPolicy="no-referrer"
                       onError={() => setImageError(true)}
                     />
-                  </>
+                  )
                 ) : (
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                    style={{
-                      transform: `scale(${(product.imageZoom || 100) / 100})`,
-                      objectPosition: product.imagePosition || 'center',
-                    }}
-                    referrerPolicy="no-referrer"
-                    onError={() => setImageError(true)}
-                  />
+                  <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-400 text-xs">
+                    Sin imagen
+                  </div>
                 )}
 
                 {/* Top & bottom gradient overlay for maximum contrast of controls and badges */}
@@ -420,10 +426,10 @@ export const ProductCustomizerModal: React.FC = () => {
                                   >
                                     {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                                   </div>
-                                  {optImage && (
+                                  {Boolean(normalizeDriveOrDirectUrl(optImage || '').normalizedUrl) && (
                                     <div className="w-9 h-9 rounded-xl border border-slate-200 overflow-hidden bg-slate-100 shrink-0 shadow-2xs">
                                       <img
-                                        src={normalizeDriveOrDirectUrl(optImage).normalizedUrl}
+                                        src={normalizeDriveOrDirectUrl(optImage || '').normalizedUrl}
                                         alt={opt.name}
                                         className="w-full h-full object-contain p-0.5"
                                       />

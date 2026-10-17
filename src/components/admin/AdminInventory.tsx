@@ -23,6 +23,7 @@ import {
   RefreshCw,
   Boxes,
   Image as ImageIcon,
+  ChevronDown,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Ingredient, IngredientUnit, Product, ProductRecipeItem } from '../../types';
@@ -123,27 +124,38 @@ export const AdminInventory: React.FC = () => {
   ).length;
   const outOfStockIngredientsCount = ingredients.filter((ing) => ing.stock <= 0).length;
 
-  // Products and Options using a specific ingredient
+  // Products and Options using a specific ingredient (Grouped & Deduplicated)
   const getIngredientUsages = (ingId: string) => {
-    const usages: Array<{
-      productId: string;
-      productName: string;
-      type: 'recipe' | 'option';
-      label: string;
-      quantity: number;
-    }> = [];
+    const usagesMap = new Map<
+      string,
+      {
+        productId: string;
+        productName: string;
+        type: 'recipe' | 'option';
+        isRecipe: boolean;
+        optionCount: number;
+        optionNames: Set<string>;
+        quantity: number;
+      }
+    >();
 
     products.forEach((p) => {
       // 1. Recipe
       p.recipe?.forEach((r) => {
         if (r.ingredientId === ingId) {
-          usages.push({
+          const item = usagesMap.get(p.id) || {
             productId: p.id,
             productName: p.name,
             type: 'recipe',
-            label: 'Receta Base',
+            isRecipe: false,
+            optionCount: 0,
+            optionNames: new Set(),
             quantity: r.quantity,
-          });
+          };
+          item.isRecipe = true;
+          item.type = 'recipe';
+          item.quantity = r.quantity;
+          usagesMap.set(p.id, item);
         }
       });
 
@@ -151,19 +163,43 @@ export const AdminInventory: React.FC = () => {
       p.optionGroups?.forEach((g) => {
         g.options.forEach((opt) => {
           if (opt.extraIngredientId === ingId) {
-            usages.push({
+            const item = usagesMap.get(p.id) || {
               productId: p.id,
               productName: p.name,
               type: 'option',
-              label: `Opción: ${opt.name}`,
+              isRecipe: false,
+              optionCount: 0,
+              optionNames: new Set(),
               quantity: opt.extraIngredientQuantity || 1,
-            });
+            };
+            item.optionCount += 1;
+            item.optionNames.add(opt.name);
+            item.quantity = opt.extraIngredientQuantity || 1;
+            usagesMap.set(p.id, item);
           }
         });
       });
     });
 
-    return usages;
+    return Array.from(usagesMap.values()).map((u) => {
+      let label = '';
+      if (u.isRecipe) {
+        label = 'Receta Base';
+      }
+      if (u.optionCount > 0) {
+        const names = Array.from(u.optionNames).join(', ');
+        const countText = u.optionCount > 1 ? ` (${u.optionCount} opciones)` : '';
+        label = label ? `${label} + Opción: ${names}${countText}` : `Opción: ${names}${countText}`;
+      }
+      return {
+        productId: u.productId,
+        productName: u.productName,
+        type: u.type,
+        label,
+        quantity: u.quantity,
+        optionCount: u.optionCount,
+      };
+    });
   };
 
   // Calculate theoretical capacity (bottleneck ingredient)
@@ -589,31 +625,54 @@ export const AdminInventory: React.FC = () => {
                         </td>
 
                         {/* Linked Products & Options (Many-to-Many) */}
-                        <td className="py-3 px-4 max-w-sm">
+                        <td className="py-3 px-4 max-w-xs">
                           {usages.length === 0 ? (
                             <span className="text-[11px] text-slate-400 italic">
-                              Sin productos ni opciones vinculadas
+                              Sin productos vinculados
+                            </span>
+                          ) : usages.length === 1 ? (
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border ${
+                                usages[0].type === 'option'
+                                  ? 'bg-amber-50 text-amber-950 border-amber-200'
+                                  : 'bg-slate-100 text-slate-800 border-slate-200'
+                              }`}
+                              title={`${usages[0].productName} • ${usages[0].label}: Descuenta ${usages[0].quantity} ${ing.unit}`}
+                            >
+                              <span className="font-semibold">{usages[0].productName}</span>
+                              <span className="text-[10px] text-slate-500">({usages[0].label})</span>
+                              <span className="text-amber-800 font-mono font-bold">
+                                (-{usages[0].quantity}{ing.unit})
+                              </span>
                             </span>
                           ) : (
-                            <div className="flex flex-wrap gap-1.5">
-                              {usages.map((u, uIdx) => (
-                                <span
-                                  key={`${u.productId}-${uIdx}`}
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium border ${
-                                    u.type === 'option'
-                                      ? 'bg-amber-50 text-amber-950 border-amber-200'
-                                      : 'bg-slate-100 text-slate-800 border-slate-200'
-                                  }`}
-                                  title={`${u.productName} • ${u.label}: Descuenta ${u.quantity} ${ing.unit}`}
-                                >
-                                  <span className="font-semibold">{u.productName}</span>
-                                  <span className="text-slate-500 text-[9px]">({u.label})</span>
-                                  <span className="text-amber-800 font-mono font-bold">
-                                    (-{u.quantity}{ing.unit})
-                                  </span>
-                                </span>
-                              ))}
-                            </div>
+                            <details className="group relative">
+                              <summary className="cursor-pointer list-none select-none inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 transition-all shadow-2xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                <span>{usages.length} productos vinculados</span>
+                                <ChevronDown className="w-3.5 h-3.5 text-amber-700 transition-transform group-open:rotate-180" />
+                              </summary>
+                              <div className="mt-2 space-y-1 p-2 bg-white rounded-xl border border-slate-200 shadow-md max-h-48 overflow-y-auto min-w-[240px]">
+                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 pb-1 border-b border-slate-100 flex items-center justify-between">
+                                  <span>Productos vinculados</span>
+                                  <span>{usages.length} total</span>
+                                </div>
+                                {usages.map((u, uIdx) => (
+                                  <div
+                                    key={`${u.productId}-${uIdx}`}
+                                    className="flex items-center justify-between gap-2 p-1.5 rounded-lg hover:bg-slate-50 text-[11px] border border-transparent hover:border-slate-100 transition-colors"
+                                  >
+                                    <div className="min-w-0 pr-1">
+                                      <p className="font-semibold text-slate-900 truncate">{u.productName}</p>
+                                      <p className="text-[10px] text-slate-400 truncate">{u.label}</p>
+                                    </div>
+                                    <span className="text-amber-800 font-mono font-bold text-[11px] shrink-0 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                      -{u.quantity}{ing.unit}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
                           )}
                         </td>
 
@@ -746,15 +805,21 @@ export const AdminInventory: React.FC = () => {
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={prod.imageUrl}
-                          alt={prod.name}
-                          className="w-12 h-12 rounded-xl object-contain p-0.5 bg-slate-100 border border-slate-200 shrink-0"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = 'none';
-                          }}
-                        />
+                        {Boolean(prod.imageUrl && prod.imageUrl.trim()) ? (
+                          <img
+                            src={prod.imageUrl}
+                            alt={prod.name}
+                            className="w-12 h-12 rounded-xl object-contain p-0.5 bg-slate-100 border border-slate-200 shrink-0"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center text-[10px] font-bold text-slate-400">
+                            {prod.name.charAt(0)}
+                          </div>
+                        )}
                         <div>
                           <h3 className="font-bold text-slate-900 text-sm">{prod.name}</h3>
                           <div className="flex items-center gap-2 mt-0.5">
@@ -979,15 +1044,21 @@ export const AdminInventory: React.FC = () => {
                       <tr key={product.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="w-10 h-10 rounded-lg object-contain p-0.5 bg-slate-100 shrink-0 border border-slate-200"
-                              referrerPolicy="no-referrer"
-                              onError={(e) => {
-                                (e.target as HTMLElement).style.display = 'none';
-                              }}
-                            />
+                            {Boolean(product.imageUrl && product.imageUrl.trim()) ? (
+                              <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="w-10 h-10 rounded-lg object-contain p-0.5 bg-slate-100 shrink-0 border border-slate-200"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-slate-100 shrink-0 border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-400">
+                                {product.name.charAt(0)}
+                              </div>
+                            )}
                             <div className="min-w-0">
                               <div className="font-bold text-slate-900 truncate max-w-xs">
                                 {product.name}
@@ -1246,10 +1317,10 @@ export const AdminInventory: React.FC = () => {
                     placeholder="Pega enlace de Google Drive o URL de la imagen..."
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 text-xs font-medium"
                   />
-                  {ingImageUrl && (
+                  {Boolean(normalizeDriveOrDirectUrl(ingImageUrl || '').normalizedUrl) && (
                     <div className="w-9 h-9 rounded-lg border border-slate-200 overflow-hidden bg-slate-100 shrink-0 shadow-2xs">
                       <img
-                        src={normalizeDriveOrDirectUrl(ingImageUrl).normalizedUrl}
+                        src={normalizeDriveOrDirectUrl(ingImageUrl || '').normalizedUrl}
                         alt="Preview"
                         className="w-full h-full object-cover"
                       />

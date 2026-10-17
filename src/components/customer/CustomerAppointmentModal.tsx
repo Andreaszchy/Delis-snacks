@@ -597,10 +597,10 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
                                     >
                                       {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                                     </div>
-                                    {opt.imageUrl && (
+                                    {Boolean(normalizeDriveOrDirectUrl(opt.imageUrl || '').normalizedUrl) && (
                                       <div className="w-7 h-7 rounded-lg border border-slate-200 overflow-hidden bg-slate-100 shrink-0 shadow-2xs">
                                         <img
-                                          src={normalizeDriveOrDirectUrl(opt.imageUrl).normalizedUrl}
+                                          src={normalizeDriveOrDirectUrl(opt.imageUrl || '').normalizedUrl}
                                           alt={opt.name}
                                           className="w-full h-full object-contain p-0.5"
                                         />
@@ -649,7 +649,7 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
                         style={isSelected ? { borderColor: theme.raw.primaryBtn, boxShadow: `0 0 0 2px ${theme.raw.primaryBtn}` } : undefined}
                       >
                         <img
-                          src={prov.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                          src={Boolean(prov.avatarUrl && prov.avatarUrl.trim()) ? prov.avatarUrl : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
                           alt={prov.name}
                           className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
                         />

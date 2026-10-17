@@ -90,20 +90,24 @@ export const ImageFramingController: React.FC<ImageFramingProps> = ({
               currentFit === 'contain' ? 'bg-slate-100' : 'bg-slate-900'
             } flex items-center justify-center`}
           >
-            <img
-              src={normalized}
-              alt="Encuadre en vivo"
-              className={`w-full h-full ${
-                currentFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'
-              } transition-transform duration-200 select-none pointer-events-none`}
-              style={{
-                transform: `scale(${currentZoom / 100})`,
-                objectPosition: currentPosition,
-              }}
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
-            />
+            {normalized ? (
+              <img
+                src={normalized}
+                alt="Encuadre en vivo"
+                className={`w-full h-full ${
+                  currentFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'
+                } transition-transform duration-200 select-none pointer-events-none`}
+                style={{
+                  transform: `scale(${currentZoom / 100})`,
+                  objectPosition: currentPosition,
+                }}
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className="text-slate-400 text-xs">Sin imagen</div>
+            )}
 
             {/* Badge overlay on preview */}
             <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-xs text-white text-[10px] font-mono shadow-xs flex items-center gap-1.5">

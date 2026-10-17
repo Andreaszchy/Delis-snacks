@@ -73,6 +73,7 @@ import {
   saveAppointmentFirestore,
   updateAppointmentStatusFirestore,
   updateAppointmentReceiptFirestore,
+  updateAppointmentPaymentFirestore,
   deleteAppointmentFirestore,
   upsertServiceFirestore,
   deleteServiceFirestore,
@@ -275,6 +276,7 @@ interface AppContextType {
   updateAppointmentStatus: (id: string, status: AppointmentStatus) => void;
   deleteAppointment: (id: string) => void;
   markTransferReceiptReceived: (id: string, received: boolean) => void;
+  markAppointmentPaymentReceived: (id: string, received: boolean) => void;
   cancelAppointment: (id: string) => Promise<void>;
   getAvailableSlotsForDate: (
     serviceId: string,
@@ -919,6 +921,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       }
     }
+  };
+
+  const markAppointmentPaymentReceived = (id: string, received: boolean) => {
+    setAppointments((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, paymentReceived: received } : a))
+    );
+    updateAppointmentPaymentFirestore(id, received).catch((err) =>
+      console.warn('Firestore updateAppointmentPayment error:', err)
+    );
   };
 
   const markOrderPaymentReceived = (orderId: string, received: boolean) => {
@@ -2726,6 +2737,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateAppointmentStatus,
         deleteAppointment,
         markTransferReceiptReceived,
+        markAppointmentPaymentReceived,
         cancelAppointment,
         getAvailableSlotsForDate,
         getDayAvailabilityStatus,

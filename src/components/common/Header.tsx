@@ -128,7 +128,7 @@ export const Header: React.FC = () => {
                   ) : (
                     <div className={`w-3.5 h-3.5 rounded-xs animate-pulse ${isLightTopBar ? 'bg-rose-300/60' : 'bg-white/20'}`} />
                   )}
-                  {businessProfile.logoUrl && (
+                  {Boolean(businessProfile.logoUrl && businessProfile.logoUrl.trim()) && (
                     <img
                       src={businessProfile.logoUrl}
                       alt={businessProfile.name || 'Logo'}
@@ -177,7 +177,7 @@ export const Header: React.FC = () => {
                     </>
                   ) : currentUser.isLoggedIn ? (
                     <>
-                      {currentUser.photoUrl ? (
+                      {Boolean(currentUser.photoUrl && currentUser.photoUrl.trim()) ? (
                         <img
                           src={currentUser.photoUrl}
                           alt={currentUser.name}

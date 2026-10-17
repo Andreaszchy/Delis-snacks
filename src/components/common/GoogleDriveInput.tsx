@@ -125,7 +125,7 @@ export const GoogleDriveInput: React.FC<GoogleDriveInputProps> = ({
       {inputValue && (
         <div className="mt-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-3">
           <div className="w-16 h-16 rounded-md bg-slate-200 overflow-hidden shrink-0 relative flex items-center justify-center border border-slate-300">
-            {imageError ? (
+            {imageError || !result.normalizedUrl ? (
               <div className="text-[10px] text-slate-500 text-center p-1 leading-tight flex flex-col items-center">
                 <AlertCircle className="w-4 h-4 text-amber-500 mb-0.5" />
                 <span>Sin vista</span>

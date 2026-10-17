@@ -199,47 +199,62 @@ export const AdminSchedule: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Header & Subtabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+      {/* Header & Subtabs (Sticky & Always Visible on all screen sizes) */}
+      <div className="sticky top-[88px] sm:top-[96px] z-20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/90 transition-all">
         <div>
-          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <Calendar className="w-6 h-6 text-rose-500" /> Gestión de Agenda
+          <h2 className="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2">
+            <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-rose-500" /> Gestión de Agenda
           </h2>
-
         </div>
 
-        <div className="flex items-center bg-slate-100 p-1.5 rounded-2xl text-xs sm:text-sm font-medium gap-1 w-full sm:w-auto overflow-x-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 w-full sm:w-auto p-1.5 bg-slate-100 rounded-2xl text-xs sm:text-sm font-medium">
           <button
+            type="button"
             onClick={() => setActiveSubTab('citas')}
-            className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl transition-all text-center whitespace-nowrap ${
-              activeSubTab === 'citas' ? `${theme.buttonClass} shadow-sm font-bold` : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 font-medium'
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all text-center ${
+              activeSubTab === 'citas'
+                ? `${theme.buttonClass} shadow-xs font-bold`
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 font-medium'
             }`}
           >
-            Calendario de Disponibilidad
+            <Calendar className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Disponibilidad</span>
           </button>
           <button
+            type="button"
             onClick={() => setActiveSubTab('horario')}
-            className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl transition-all text-center whitespace-nowrap ${
-              activeSubTab === 'horario' ? `${theme.buttonClass} shadow-sm font-bold` : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 font-medium'
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all text-center ${
+              activeSubTab === 'horario'
+                ? `${theme.buttonClass} shadow-xs font-bold`
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 font-medium'
             }`}
           >
-            Horario Semanal
+            <Clock className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Horario Semanal</span>
           </button>
           <button
+            type="button"
             onClick={() => setActiveSubTab('excepciones')}
-            className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl transition-all text-center whitespace-nowrap ${
-              activeSubTab === 'excepciones' ? `${theme.buttonClass} shadow-sm font-bold` : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 font-medium'
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all text-center ${
+              activeSubTab === 'excepciones'
+                ? `${theme.buttonClass} shadow-xs font-bold`
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 font-medium'
             }`}
           >
-            Bloqueos ({exceptions.length})
+            <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Bloqueos ({exceptions.length})</span>
           </button>
           <button
+            type="button"
             onClick={() => setActiveSubTab('proveedores')}
-            className={`flex-1 sm:flex-initial px-3.5 py-2 rounded-xl transition-all text-center whitespace-nowrap ${
-              activeSubTab === 'proveedores' ? `${theme.buttonClass} shadow-sm font-bold` : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 font-medium'
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all text-center ${
+              activeSubTab === 'proveedores'
+                ? `${theme.buttonClass} shadow-xs font-bold`
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 font-medium'
             }`}
           >
-            Personal ({providers.length})
+            <Users className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Personal ({providers.length})</span>
           </button>
         </div>
       </div>
@@ -408,39 +423,14 @@ export const AdminSchedule: React.FC = () => {
                                     <span>{app.customerPhone}</span>
                                   </div>
 
-                                  {/* Action Buttons */}
-                                  <div className="pt-1 flex items-center justify-end gap-1.5">
-                                    {!isCancelled ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          if (window.confirm(`¿Deseas cancelar la cita #${app.appointmentNumber}? El horario quedará desocupado y el día volverá a estar disponible.`)) {
-                                            cancelAppointment(app.id);
-                                          }
-                                        }}
-                                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors"
-                                        title="Cancelar cita y liberar horario"
-                                      >
-                                        Cancelar Cita (Liberar Cupo)
-                                      </button>
-                                    ) : (
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] text-slate-400 italic">
-                                          Horario desocupado y libre
-                                        </span>
-                                        {activeDayApps.length < 2 && (
-                                          <button
-                                            type="button"
-                                            onClick={() => updateAppointmentStatus(app.id, 'confirmada')}
-                                            className="px-2 py-0.5 rounded text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200"
-                                            title="Reactivar cita"
-                                          >
-                                            Reactivar
-                                          </button>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
+                                  {/* Status indicator for cancelled */}
+                                  {isCancelled && (
+                                    <div className="pt-1 flex items-center justify-end">
+                                      <span className="text-[10px] text-slate-400 italic">
+                                        Horario desocupado y libre
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })
@@ -723,7 +713,7 @@ export const AdminSchedule: React.FC = () => {
                 <div key={prov.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <img
-                      src={prov.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                      src={Boolean(prov.avatarUrl && prov.avatarUrl.trim()) ? prov.avatarUrl : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
                       alt={prov.name}
                       className="w-12 h-12 rounded-full object-cover border border-slate-200 shrink-0"
                     />

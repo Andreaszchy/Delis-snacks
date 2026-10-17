@@ -29,6 +29,7 @@ export const AdminSalesOrders: React.FC = () => {
     updateOrderStatus,
     updateAppointmentStatus,
     markOrderPaymentReceived,
+    markAppointmentPaymentReceived,
     markTransferReceiptReceived,
     deleteOrder,
     deleteAppointment,
@@ -524,6 +525,11 @@ export const AdminSalesOrders: React.FC = () => {
                       <span className="text-sm font-bold text-slate-900 font-mono">
                         Total: {businessProfile.currency}{item.total}
                       </span>
+                      {((isOrder && order?.paymentReceived) || (!isOrder && appointment?.paymentReceived)) && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          Cobrado ✓
+                        </span>
+                      )}
                     </div>
                     {isOrder && order && (
                       <div className="text-[11px] text-slate-600">
@@ -637,14 +643,14 @@ export const AdminSalesOrders: React.FC = () => {
 
                 {/* Action Buttons: Cash Confirmation, WhatsApp, Ticket */}
                 <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {isOrder && order && (
                       <button
                         onClick={() => markOrderPaymentReceived(order.id, !order.paymentReceived)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                           order.paymentReceived
                             ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                            : 'bg-amber-500 text-white hover:bg-amber-600 shadow-xs'
+                            : `${theme.buttonClass} shadow-xs`
                         }`}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
@@ -653,41 +659,23 @@ export const AdminSalesOrders: React.FC = () => {
                         </span>
                       </button>
                     )}
-                    {!isOrder && appointment && (
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {/* Comprobante Recibido & Confirmar */}
-                        <button
-                          onClick={() => {
-                            markTransferReceiptReceived(appointment.id, true);
-                            updateAppointmentStatus(appointment.id, 'confirmada');
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                            appointment.status === 'confirmada' || appointment.transferReceiptReceived
-                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                              : 'bg-amber-500 text-white hover:bg-amber-600 shadow-xs'
-                          }`}
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>
-                            {appointment.status === 'confirmada' || appointment.transferReceiptReceived ? 'Comprobante Validado ✓' : 'Comprobante Recibido & Confirmar'}
-                          </span>
-                        </button>
 
-                        {/* Completar */}
-                        <button
-                          onClick={() => updateAppointmentStatus(appointment.id, 'completada')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                            appointment.status === 'completada'
-                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                              : 'bg-slate-900 text-white hover:bg-slate-800 shadow-xs'
-                          }`}
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>
-                            {appointment.status === 'completada' ? 'Completado ✓' : 'Completar'}
-                          </span>
-                        </button>
-                      </div>
+                    {!isOrder && appointment && (
+                      <button
+                        type="button"
+                        onClick={() => markAppointmentPaymentReceived(appointment.id, !appointment.paymentReceived)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          appointment.paymentReceived
+                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                            : `${theme.buttonClass} shadow-xs`
+                        }`}
+                        title={appointment.paymentReceived ? 'Clic para desmarcar cobro' : 'Marcar servicio como cobrado'}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>
+                          {appointment.paymentReceived ? 'Cobrado ✓' : 'Cobrado'}
+                        </span>
+                      </button>
                     )}
 
                     {/* WhatsApp */}

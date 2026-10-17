@@ -148,15 +148,21 @@ export const AdminBanners: React.FC = () => {
               <div>
                 {/* Banner Preview Frame with Scrim */}
                 <div className="relative aspect-[16/8] bg-slate-900 overflow-hidden">
-                  <img
-                    src={banner.imageUrl}
-                    alt={banner.title}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
+                  {Boolean(banner.imageUrl && banner.imageUrl.trim()) ? (
+                    <img
+                      src={banner.imageUrl}
+                      alt={banner.title}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-400 text-xs font-medium">
+                      Sin imagen de banner
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
                   {/* Badges */}

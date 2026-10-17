@@ -395,21 +395,27 @@ export const AdminCatalog: React.FC = () => {
                   product.imageFit === 'contain' ? 'bg-slate-50' : 'bg-slate-100'
                 } flex items-center justify-center overflow-hidden`}
               >
-                <img
-                  src={product.imageUrl}
-                  alt={product.name}
-                  className={`w-full h-full ${
-                    product.imageFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'
-                  }`}
-                  style={{
-                    transform: `scale(${(product.imageZoom || 100) / 100})`,
-                    objectPosition: product.imagePosition || 'center',
-                  }}
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
-                />
+                {Boolean(product.imageUrl && product.imageUrl.trim()) ? (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className={`w-full h-full ${
+                      product.imageFit === 'contain' ? 'object-contain p-1.5' : 'object-cover'
+                    }`}
+                    style={{
+                      transform: `scale(${(product.imageZoom || 100) / 100})`,
+                      objectPosition: product.imagePosition || 'center',
+                    }}
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs font-medium">
+                    <span>{product.name}</span>
+                  </div>
+                )}
                 <div className="absolute top-2.5 left-2.5 flex items-center gap-1">
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-white/90 text-slate-900">
                     {product.type}
@@ -950,7 +956,7 @@ export const AdminCatalog: React.FC = () => {
                                       placeholder="Pega enlace de Google Drive o URL de imagen..."
                                       className="w-full px-2.5 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 font-medium text-slate-800"
                                     />
-                                    {(opt.imageUrl || linkedIng?.imageUrl) && (
+                                    {Boolean(normalizeDriveOrDirectUrl(opt.imageUrl || linkedIng?.imageUrl || '').normalizedUrl) && (
                                       <div className="w-7 h-7 rounded-lg border border-slate-200 overflow-hidden bg-slate-100 shrink-0 shadow-2xs">
                                         <img
                                           src={normalizeDriveOrDirectUrl(opt.imageUrl || linkedIng?.imageUrl || '').normalizedUrl}
