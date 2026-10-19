@@ -227,47 +227,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            {/* Admin View Switcher (Only visible to authorized administrator!) */}
-            {isAdminUser && (
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                  Modo de visualización
-                </p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      switchRole('admin');
-                      onClose();
-                    }}
-                    className={`p-2.5 rounded-xl font-bold flex items-center justify-center gap-2 border transition-all ${
-                      isCurrentAdminView
-                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    <LayoutDashboard className="w-4 h-4" />
-                    <span>Panel de Gerencia</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      switchRole('client');
-                      setCustomerTab('catalogo');
-                      onClose();
-                    }}
-                    className={`p-2.5 rounded-xl font-bold flex items-center justify-center gap-2 border transition-all ${
-                      !isCurrentAdminView
-                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Store className="w-4 h-4" />
-                    <span>Vista Tienda</span>
-                  </button>
-                </div>
-              </div>
+            {/* Direct Admin Access Button if authorized admin is viewing shop */}
+            {isAdminUser && !isCurrentAdminView && (
+              <button
+                type="button"
+                onClick={() => {
+                  switchRole('admin');
+                  onClose();
+                }}
+                className="w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-all active:scale-95"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Panel de Administración</span>
+              </button>
             )}
           </div>
         ) : (
