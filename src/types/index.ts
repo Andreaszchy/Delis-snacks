@@ -310,6 +310,8 @@ export interface CurrentUser {
   photoUrl?: string;
   isLoggedIn?: boolean;
   authProvider?: 'google' | 'password' | 'guest';
+  isAuthorizedAdmin?: boolean;
+  dbRole?: UserRole;
   privacyAcceptedAt?: string;
   healthConsent?: boolean;
 }

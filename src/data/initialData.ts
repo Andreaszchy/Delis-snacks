@@ -20,7 +20,7 @@ export const INITIAL_SERVICES: Service[] = [
     hybridHoursThreshold: 6,
     providerResponseDeadlineMinutes: 120,
     minCancellationHours: 24,
-    minNoticeHours: 12,
+    minNoticeHours: 2,
     providerIds: ['prov-1'],
     available: true,
     optionGroups: [
@@ -67,11 +67,11 @@ export const INITIAL_SERVICES: Service[] = [
 export const INITIAL_APPOINTMENTS: Appointment[] = [];
 
 export const INITIAL_WEEKLY_SCHEDULE: DaySchedule[] = [
-  { dayOfWeek: 0, enabled: true, startTime: '10:00', endTime: '23:00' }, // Domingo
-  { dayOfWeek: 1, enabled: true, startTime: '11:00', endTime: '22:00', breakStartTime: '15:00', breakEndTime: '16:00' }, // Lunes
-  { dayOfWeek: 2, enabled: true, startTime: '11:00', endTime: '22:00', breakStartTime: '15:00', breakEndTime: '16:00' }, // Martes
-  { dayOfWeek: 3, enabled: true, startTime: '11:00', endTime: '22:00', breakStartTime: '15:00', breakEndTime: '16:00' }, // Miércoles
-  { dayOfWeek: 4, enabled: true, startTime: '11:00', endTime: '23:00', breakStartTime: '15:00', breakEndTime: '16:00' }, // Jueves
+  { dayOfWeek: 0, enabled: true, startTime: '10:00', endTime: '23:30' }, // Domingo
+  { dayOfWeek: 1, enabled: true, startTime: '11:00', endTime: '23:30', breakStartTime: '15:00', breakEndTime: '16:00' }, // Lunes
+  { dayOfWeek: 2, enabled: true, startTime: '11:00', endTime: '23:30', breakStartTime: '15:00', breakEndTime: '16:00' }, // Martes
+  { dayOfWeek: 3, enabled: true, startTime: '11:00', endTime: '23:30', breakStartTime: '15:00', breakEndTime: '16:00' }, // Miércoles
+  { dayOfWeek: 4, enabled: true, startTime: '11:00', endTime: '23:30', breakStartTime: '15:00', breakEndTime: '16:00' }, // Jueves
   { dayOfWeek: 5, enabled: true, startTime: '11:00', endTime: '23:30', breakStartTime: '15:00', breakEndTime: '16:00' }, // Viernes
   { dayOfWeek: 6, enabled: true, startTime: '10:00', endTime: '23:30' }, // Sábado
 ];
@@ -100,7 +100,7 @@ export const INITIAL_BUSINESS_PROFILE: BusinessProfile = {
   enableStockControl: true,
   licenseCode: 'LIC-DELISSNACKS-2026',
   customBackgroundColor: '',
-  adminEmails: ['jblackbourne98@gmail.com', 'jorgeandres980706@gmail.com'],
+  adminEmails: [],
 };
 
 // Sabores de gomitas y dulces enchilados para "¡Ármala a tu gusto!"

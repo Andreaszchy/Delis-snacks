@@ -41,6 +41,7 @@ export const AdminSchedule: React.FC = () => {
     exceptions,
     addException,
     deleteException,
+    getDayAvailabilityStatus,
     businessProfile,
     theme,
   } = useApp();
@@ -177,7 +178,7 @@ export const AdminSchedule: React.FC = () => {
       case 'pendiente':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-            <AlertCircle className="w-3.5 h-3.5" /> Pendiente (Mismo Día)
+            <AlertCircle className="w-3.5 h-3.5" /> Pendiente
           </span>
         );
       case 'completada':
@@ -351,14 +352,19 @@ export const AdminSchedule: React.FC = () => {
                     const activeDayApps = dayApps.filter((a) => a.status !== 'cancelada');
                     const cancelledDayApps = dayApps.filter((a) => a.status === 'cancelada');
 
+                    const dayAvailability = getDayAvailabilityStatus(calendarSelectedDate, activeScheduleProvider?.id);
+
                     let statusColor = 'bg-emerald-50 text-emerald-800 border-emerald-300';
                     let statusLabel = '🟢 Totalmente disponible (0/2 eventos)';
-                    if (activeDayApps.length >= 2) {
+                    if (dayAvailability.status === 'red') {
                       statusColor = 'bg-rose-50 text-rose-800 border-rose-300';
                       statusLabel = '🔴 Día Lleno (2/2 eventos) - No disponible';
-                    } else if (activeDayApps.length === 1) {
+                    } else if (dayAvailability.status === 'yellow') {
                       statusColor = 'bg-amber-50 text-amber-900 border-amber-300';
                       statusLabel = '🟡 1 evento reservado (1 cupo libre)';
+                    } else if (dayAvailability.status === 'closed') {
+                      statusColor = 'bg-slate-100 text-slate-600 border-slate-300';
+                      statusLabel = `⚪ ${dayAvailability.message}`;
                     }
 
                     return (
@@ -386,7 +392,11 @@ export const AdminSchedule: React.FC = () => {
                               <Calendar className="w-6 h-6 text-emerald-500 mx-auto" />
                               <p className="font-bold text-xs text-slate-700">Sin citas para este día</p>
                               <p className="text-[11px] text-slate-400">
-                                El día tiene 2 cupos libres disponibles para clientes en el catálogo.
+                                {dayAvailability.status === 'red'
+                                  ? 'Día bloqueado o lleno por otros eventos.'
+                                  : dayAvailability.status === 'yellow'
+                                  ? 'El día tiene 1 cupo libre disponible para clientes en el catálogo.'
+                                  : 'El día tiene 2 cupos libres disponibles para clientes en el catálogo.'}
                               </p>
                             </div>
                           ) : (

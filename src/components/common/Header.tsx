@@ -12,6 +12,7 @@ import {
   Calendar,
   Bell,
   Truck,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AuthModal } from './AuthModal';
@@ -23,6 +24,7 @@ export const Header: React.FC = () => {
     businessProfile,
     currentUser,
     switchRole,
+    isAdminUser,
     cartCount,
     setIsCartDrawerOpen,
     unreadNotificationsCount,
@@ -202,6 +204,29 @@ export const Header: React.FC = () => {
             </div>
           );
         })()}
+
+        {/* Banner de acceso rápido para volver al panel gerencial cuando un admin está navegando como cliente */}
+        {isAdminUser && !isAdmin && (
+          <div className="bg-slate-900 text-slate-100 px-4 sm:px-6 py-2 border-b border-slate-800 flex items-center justify-between text-xs transition-colors shadow-inner">
+            <div className="flex items-center gap-2 min-w-0">
+              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="font-bold text-white text-xs truncate">
+                Modo Vista Cliente Activo
+              </span>
+              <span className="text-[11px] text-slate-400 hidden md:inline truncate">
+                — Tienes permisos de Administrador en la base de datos
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => switchRole('admin')}
+              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-all text-xs shadow-xs shrink-0 flex items-center gap-1.5 active:scale-95"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              <span>Volver a Panel Admin</span>
+            </button>
+          </div>
+        )}
 
         {/* Discreet secondary sub-bar under top bar: Cart and Notifications */}
         {!isAdmin && (

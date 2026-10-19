@@ -470,7 +470,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return ing;
       });
       const target = updated.find((i) => i.id === id);
-      const isManager = currentUser.role === 'admin' || isUserAdminEmail(currentUser.email, businessProfile.adminEmails);
+      const isManager = currentUser.role === 'admin' || currentUser.isAuthorizedAdmin || currentUser.dbRole === 'admin';
       if (target && isManager) {
         upsertIngredientFirestore(target).catch((err) => console.warn('Firestore adjustIngredientStock error:', err));
       }
@@ -563,7 +563,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return p;
       });
       const target = updated.find((p) => p.id === id);
-      const isManager = currentUser.role === 'admin' || isUserAdminEmail(currentUser.email, businessProfile.adminEmails);
+      const isManager = currentUser.role === 'admin' || currentUser.isAuthorizedAdmin || currentUser.dbRole === 'admin';
       if (target && isManager) {
         upsertProductFirestore(target).catch((err) => console.warn('Firestore adjustStock error:', err));
       }
@@ -752,7 +752,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 2. Relación Many-to-Many: Descontar stock central de ingredientes según la receta (ingredientDeductions already computed above)
 
     // Aplicar los descuentos al catálogo central de ingredientes
-    const isManagerOrder = currentUser.role === 'admin' || isUserAdminEmail(currentUser.email, businessProfile.adminEmails);
+    const isManagerOrder = currentUser.role === 'admin' || currentUser.isAuthorizedAdmin || currentUser.dbRole === 'admin';
     if (Object.keys(ingredientDeductions).length > 0) {
       setIngredients((prev) =>
         prev.map((ing) => {
@@ -877,14 +877,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const updateAppointmentStatus = (id: string, status: AppointmentStatus) => {
+  const updateAppointmentStatus = async (id: string, status: AppointmentStatus) => {
+    const target = appointments.find((a) => a.id === id);
     setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
     updateAppointmentStatusFirestore(id, status).catch((err) => console.warn('Firestore updateAppointmentStatus error:', err));
     if (status === 'cancelada') {
-      setBusySlots((prev) => prev.filter((b) => b.id !== id));
-      deleteBusySlotFirestore(id).catch((err) => console.warn('Firestore deleteBusySlot error:', err));
+      const targetStartMs = target ? new Date(target.startTimeUtc).getTime() : null;
+      const matchingSlots = busySlots.filter(
+        (b) => b.id === id || (targetStartMs !== null && Math.abs(new Date(b.startTimeUtc).getTime() - targetStartMs) < 60 * 60 * 1000)
+      );
+      setBusySlots((prev) => prev.filter((b) => b.id !== id && !matchingSlots.some((m) => m.id === b.id)));
+      deleteBusySlotFirestore(id).catch(() => {});
+      for (const slot of matchingSlots) {
+        deleteBusySlotFirestore(slot.id).catch(() => {});
+      }
     }
-    const target = appointments.find((a) => a.id === id);
     if (target) {
       if (status === 'confirmada' || status === 'completada') {
         if (target.customerUid) {
@@ -902,9 +909,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteAppointment = async (id: string) => {
+    const target = appointments.find((a) => a.id === id);
     setAppointments((prev) => prev.filter((a) => a.id !== id));
     await deleteAppointmentFirestore(id).catch((err) => console.warn('Firestore deleteAppointment error:', err));
-    await deleteBusySlotFirestore(id).catch((err) => console.warn('Firestore deleteBusySlot error:', err));
+    const targetStartMs = target ? new Date(target.startTimeUtc).getTime() : null;
+    const matchingSlots = busySlots.filter(
+      (b) => b.id === id || (targetStartMs !== null && Math.abs(new Date(b.startTimeUtc).getTime() - targetStartMs) < 60 * 60 * 1000)
+    );
+    setBusySlots((prev) => prev.filter((b) => b.id !== id && !matchingSlots.some((m) => m.id === b.id)));
+    await deleteBusySlotFirestore(id).catch(() => {});
+    for (const slot of matchingSlots) {
+      deleteBusySlotFirestore(slot.id).catch(() => {});
+    }
   };
 
   const markTransferReceiptReceived = (id: string, received: boolean) => {
@@ -1549,6 +1565,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         endTimeUtc: newAppointment.endTimeUtc,
       };
       await upsertBusySlotFirestore(busySlot);
+      setBusySlots((prev) => [busySlot, ...prev.filter((b) => b.id !== busySlot.id)]);
     } catch (saveError) {
       console.error('Error al guardar cita en Firestore:', saveError);
       throw saveError;
@@ -1607,8 +1624,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       prev.map((a) => (a.id === id ? { ...a, status: 'cancelada' } : a))
     );
 
-    setBusySlots((prev) => prev.filter((b) => b.id !== id));
+    const appStartMs = new Date(app.startTimeUtc).getTime();
+    const matchingSlots = busySlots.filter(
+      (b) => b.id === id || Math.abs(new Date(b.startTimeUtc).getTime() - appStartMs) < 30 * 60 * 1000
+    );
+    setBusySlots((prev) => prev.filter((b) => !matchingSlots.some((m) => m.id === b.id)));
     await deleteBusySlotFirestore(id).catch(() => {});
+    for (const slot of matchingSlots) {
+      if (slot.id !== id) {
+        await deleteBusySlotFirestore(slot.id).catch(() => {});
+      }
+    }
 
     // Send push notification for cancellation: gerente vs clienta
     const isActingAsAdmin = isAdminUser || currentUser.role === 'admin';
@@ -1676,11 +1702,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (matchingExceptions.some(e => e.type === 'bloqueo_total')) return [];
 
     // Regla de capacidad máxima del negocio: Máximo 2 eventos para el mismo día.
-    // Si se registran 2 eventos para el mismo día, marcar el día como no disponible ([]).
-    // Si alguno de esos dos eventos cancela (status === 'cancelada'), vuelve a amarillo
-    // y se mantiene abierto el horario que se desocupó para ese día.
-    const dayActiveAppointments = appointments.filter((a) => {
-      if (a.status === 'cancelada') return false;
+    // Deduplicación robusta de eventos por horario y por ID entre busy_slots y citas
+    const isCancelledStatus = (s?: string) => s === 'cancelada' || s === 'cancelado';
+    const cancelledAppIds = new Set(appointments.filter((a) => isCancelledStatus(a.status)).map((a) => a.id));
+    const cancelledIntervals = appointments
+      .filter((a) => isCancelledStatus(a.status))
+      .map((a) => ({
+        startMs: new Date(a.startTimeUtc).getTime(),
+        endMs: new Date(a.endTimeUtc).getTime(),
+      }));
+
+    const dayAppointments = appointments.filter((a) => {
+      if (isCancelledStatus(a.status)) return false;
       const aStart = new Date(a.startTimeUtc);
       return (
         aStart.getFullYear() === year &&
@@ -1689,14 +1722,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
     });
 
-    if (dayActiveAppointments.length >= 2) {
+    const dayBusySlots = busySlots.filter((slot) => {
+      if (cancelledAppIds.has(slot.id)) return false;
+      const slotStart = new Date(slot.startTimeUtc);
+      const slotStartMs = slotStart.getTime();
+      if (cancelledIntervals.some((c) => Math.abs(c.startMs - slotStartMs) < 30 * 60 * 1000)) {
+        return false;
+      }
+      return (
+        slotStart.getFullYear() === year &&
+        slotStart.getMonth() === month - 1 &&
+        slotStart.getDate() === day
+      );
+    });
+
+    // Unifica y deduplica eventos para que una misma cita nunca se cuente dos veces
+    const distinctDayEvents: Array<{ id: string; startMs: number }> = [];
+
+    dayAppointments.forEach((app) => {
+      const sMs = new Date(app.startTimeUtc).getTime();
+      const already = distinctDayEvents.some(
+        (e) => e.id === app.id || Math.abs(e.startMs - sMs) < 30 * 60 * 1000
+      );
+      if (!already) {
+        distinctDayEvents.push({ id: app.id, startMs: sMs });
+      }
+    });
+
+    dayBusySlots.forEach((slot) => {
+      const sMs = new Date(slot.startTimeUtc).getTime();
+      const already = distinctDayEvents.some(
+        (e) => e.id === slot.id || Math.abs(e.startMs - sMs) < 30 * 60 * 1000
+      );
+      if (!already) {
+        distinctDayEvents.push({ id: slot.id, startMs: sMs });
+      }
+    });
+
+    if (distinctDayEvents.length >= 2) {
       return []; // Día lleno (2 eventos agendados), no disponible
     }
 
     let startHour = daySched.startTime;
     let endHour = daySched.endTime;
 
-    const specialHoursException = matchingExceptions.find(e => e.type === 'horario_especial' && e.startTime && e.endTime);
+    const specialHoursException = matchingExceptions.find((e) => e.type === 'horario_especial' && e.startTime && e.endTime);
     if (specialHoursException && specialHoursException.startTime && specialHoursException.endTime) {
       startHour = specialHoursException.startTime;
       endHour = specialHoursException.endTime;
@@ -1705,7 +1775,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [startH, startM] = startHour.split(':').map(Number);
     const [endH, endM] = endHour.split(':').map(Number);
     let currentMinutes = startH * 60 + startM;
-    const endMinutes = endH * 60 + endM;
+    // Permitir horarios nocturnos (a partir de las 21:00 hrs y hasta las 23:30 hrs)
+    const endMinutes = Math.max(endH * 60 + endM, 23 * 60 + 30);
 
     let breakStartMin = -1;
     let breakEndMin = -1;
@@ -1716,55 +1787,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       breakEndMin = bh2 * 60 + bm2;
     }
 
-    const cancelledAppIds = new Set(appointments.filter(a => a.status === 'cancelada').map(a => a.id));
-
-    const providerBusySlots = busySlots.filter(slot => {
+    const providerBusySlots = busySlots.filter((slot) => {
       if (cancelledAppIds.has(slot.id)) return false;
-      if (slot.providerId !== providerId) return false;
+      if (effectiveProviderId && slot.providerId && slot.providerId !== effectiveProviderId) return false;
       const slotStart = new Date(slot.startTimeUtc);
       return slotStart.getFullYear() === year && slotStart.getMonth() === month - 1 && slotStart.getDate() === day;
     });
 
-    const activeAppointments = appointments.filter(a => {
-      if (a.status === 'cancelada') return false;
-      if (a.providerId !== providerId) return false;
+    const activeAppointments = appointments.filter((a) => {
+      if (isCancelledStatus(a.status)) return false;
+      if (effectiveProviderId && a.providerId && a.providerId !== effectiveProviderId) return false;
       const aStart = new Date(a.startTimeUtc);
       return aStart.getFullYear() === year && aStart.getMonth() === month - 1 && aStart.getDate() === day;
     });
 
     const now = new Date();
-    const minNoticeHours = ('minNoticeHours' in service && typeof service.minNoticeHours === 'number') ? service.minNoticeHours : 2;
-    const minNoticeTime = new Date(now.getTime() + minNoticeHours * 60 * 60 * 1000);
+    const isToday = (
+      now.getFullYear() === year &&
+      now.getMonth() === month - 1 &&
+      now.getDate() === day
+    );
+
+    const isQuoteOrAdmin = Boolean(
+      currentUser.role === 'admin' ||
+      currentUser.isAuthorizedAdmin ||
+      currentUser.dbRole === 'admin' ||
+      ('isQuoteRequired' in service && service.isQuoteRequired) ||
+      ('priceType' in service && (service.priceType === 'a_cotizar' || service.priceType === 'desde'))
+    );
 
     const slots: string[] = [];
 
-    while (currentMinutes + totalDuration <= endMinutes) {
-      const slotStartH = Math.floor(currentMinutes / 60);
+    while (currentMinutes <= endMinutes) {
+      const slotStartH = Math.floor(currentMinutes / 60) % 24;
       const slotStartM = currentMinutes % 60;
-      const slotEndMinutes = currentMinutes + totalDuration;
+      const slotStartTs = new Date(year, month - 1, day, Math.floor(currentMinutes / 60), slotStartM).getTime();
+      const slotEndTs = slotStartTs + totalDuration * 60 * 1000;
 
-      const overlapsBreak = breakStartMin !== -1 && !(slotEndMinutes <= breakStartMin || currentMinutes >= breakEndMin);
+      const overlapsBreak = breakStartMin !== -1 && !(currentMinutes + totalDuration <= breakStartMin || currentMinutes >= breakEndMin);
 
-      const overlapsBusySlot = providerBusySlots.some(slot => {
-        const slotStart = new Date(slot.startTimeUtc);
-        const slotEnd = new Date(slot.endTimeUtc);
-        const slotStartMin = slotStart.getHours() * 60 + slotStart.getMinutes();
-        const slotEndMin = slotEnd.getHours() * 60 + slotEnd.getMinutes();
-        return !(slotEndMinutes <= slotStartMin || currentMinutes >= slotEndMin);
+      const overlapsBusySlot = providerBusySlots.some((slot) => {
+        const slotStart = new Date(slot.startTimeUtc).getTime();
+        const slotEnd = new Date(slot.endTimeUtc).getTime();
+        return !(slotEndTs <= slotStart || slotStartTs >= slotEnd);
       });
 
-      const overlapsAppointment = activeAppointments.some(a => {
-        const aStart = new Date(a.startTimeUtc);
-        const aEnd = new Date(a.endTimeUtc);
-        const aStartMin = aStart.getHours() * 60 + aStart.getMinutes();
-        const aEndMin = aEnd.getHours() * 60 + aEnd.getMinutes();
-        return !(slotEndMinutes <= aStartMin || currentMinutes >= aEndMin);
+      const overlapsAppointment = activeAppointments.some((a) => {
+        const aStart = new Date(a.startTimeUtc).getTime();
+        const aEnd = new Date(a.endTimeUtc).getTime();
+        return !(slotEndTs <= aStart || slotStartTs >= aEnd);
       });
 
       const overlapsApp = overlapsBusySlot || overlapsAppointment;
 
-      const slotDateTime = new Date(year, month - 1, day, slotStartH, slotStartM);
-      const isPastMinNotice = slotDateTime >= minNoticeTime;
+      // Al cancelar citas o cotizar, los horarios se liberan de inmediato:
+      // Para días futuros se permiten todos. Si es hoy, se permiten todos los horarios que no hayan concluido (o todos si es cotización o admin)
+      const isPastMinNotice = isQuoteOrAdmin
+        ? true
+        : (!isToday || slotStartTs >= now.getTime() - 15 * 60 * 1000);
 
       if (!overlapsBreak && !overlapsApp && isPastMinNotice) {
         const formattedTime = `${String(slotStartH).padStart(2, '0')}:${String(slotStartM).padStart(2, '0')}`;
@@ -1831,9 +1911,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    // Active appointments on this day (excluding cancelled ones)
-    const dayActiveAppointments = appointments.filter((a) => {
-      if (a.status === 'cancelada') return false;
+    // Identificar eventos agendados activos combinando citas y busySlots anónimos
+    const isCancelledStatus = (s?: string) => s === 'cancelada' || s === 'cancelado';
+    const cancelledAppIds = new Set(appointments.filter((a) => isCancelledStatus(a.status)).map((a) => a.id));
+    const cancelledIntervals = appointments
+      .filter((a) => isCancelledStatus(a.status))
+      .map((a) => ({
+        startMs: new Date(a.startTimeUtc).getTime(),
+        endMs: new Date(a.endTimeUtc).getTime(),
+      }));
+
+    const dayAppointments = appointments.filter((a) => {
+      if (isCancelledStatus(a.status)) return false;
       const aStart = new Date(a.startTimeUtc);
       return (
         aStart.getFullYear() === year &&
@@ -1842,13 +1931,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
     });
 
-    const count = dayActiveAppointments.length;
+    const dayBusySlots = busySlots.filter((slot) => {
+      if (cancelledAppIds.has(slot.id)) return false;
+      const slotStart = new Date(slot.startTimeUtc);
+      const slotStartMs = slotStart.getTime();
+      if (cancelledIntervals.some((c) => Math.abs(c.startMs - slotStartMs) < 30 * 60 * 1000)) {
+        return false;
+      }
+      return (
+        slotStart.getFullYear() === year &&
+        slotStart.getMonth() === month - 1 &&
+        slotStart.getDate() === day
+      );
+    });
+
+    // Unifica y deduplica eventos por id y por proximidad de horario (dentro de 30 minutos)
+    const distinctDayEvents: Array<{ id: string; startMs: number }> = [];
+
+    dayAppointments.forEach((app) => {
+      const sMs = new Date(app.startTimeUtc).getTime();
+      const already = distinctDayEvents.some(
+        (e) => e.id === app.id || Math.abs(e.startMs - sMs) < 30 * 60 * 1000
+      );
+      if (!already) {
+        distinctDayEvents.push({ id: app.id, startMs: sMs });
+      }
+    });
+
+    dayBusySlots.forEach((slot) => {
+      const sMs = new Date(slot.startTimeUtc).getTime();
+      const already = distinctDayEvents.some(
+        (e) => e.id === slot.id || Math.abs(e.startMs - sMs) < 30 * 60 * 1000
+      );
+      if (!already) {
+        distinctDayEvents.push({ id: slot.id, startMs: sMs });
+      }
+    });
+
+    const count = distinctDayEvents.length;
 
     if (count >= 2) {
       return {
         count,
         status: 'red',
-        message: 'Día no disponible (2 eventos agendados - Cupo lleno)',
+        message: 'Día no disponible para eventos (Cupo agotado)',
         isAvailable: false,
       };
     }
@@ -1857,7 +1983,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return {
         count,
         status: 'yellow',
-        message: '1 evento agendado (Último cupo disponible)',
+        message: 'Horarios disponibles (Cupo limitado)',
         isAvailable: true,
       };
     }
@@ -1865,7 +1991,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return {
       count: 0,
       status: 'green',
-      message: 'Totalmente disponible (0/2 eventos agendados)',
+      message: 'Totalmente disponible para agendar',
       isAvailable: true,
     };
   };
@@ -2022,6 +2148,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       () => {}
     );
 
+    // Subscribe to busy_slots globally for all visitors/users to ensure identical real-time availability
+    const unsubBusySlotsGlobal = subscribeBusySlots(
+      (remoteSlots) => {
+        if (!isMounted) return;
+        setBusySlots(remoteSlots);
+      },
+      () => {}
+    );
+
     return () => {
       isMounted = false;
       window.removeEventListener('online', handleOnline);
@@ -2034,6 +2169,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       unsubSchedule();
       unsubExceptions();
       unsubServices();
+      unsubBusySlotsGlobal();
     };
   }, []);
 
@@ -2046,9 +2182,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const parsed = JSON.parse(savedUser);
         if (parsed && typeof parsed === 'object') {
           const emailVerified = Boolean(parsed.emailVerified);
-          const dbRole = parsed.role;
-          const isAuthorized = parsed.email && emailVerified && isUserAdminEmail(parsed.email);
-          const resolvedRole = dbRole === 'admin' || dbRole === 'client' ? dbRole : (isAuthorized ? 'admin' : 'client');
+          const dbRole = (parsed.dbRole || (parsed.isAuthorizedAdmin ? 'admin' : parsed.role)) as UserRole;
+          const isAuthorized = Boolean(
+            parsed.isAuthorizedAdmin ||
+            dbRole === 'admin' ||
+            parsed.role === 'admin' ||
+            (parsed.email && isUserAdminEmail(parsed.email))
+          );
+          const resolvedRole = parsed.role === 'client' ? 'client' : (isAuthorized ? 'admin' : 'client');
           const privacyAcceptedAt = parsed.privacyAcceptedAt || storedConsent || undefined;
           return {
             role: resolvedRole,
@@ -2061,6 +2202,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             photoUrl: parsed.photoUrl,
             isLoggedIn: Boolean(parsed.isLoggedIn),
             authProvider: parsed.authProvider || 'guest',
+            isAuthorizedAdmin: isAuthorized,
+            dbRole: isAuthorized ? 'admin' : dbRole,
             privacyAcceptedAt,
             healthConsent: Boolean(parsed.healthConsent),
           };
@@ -2075,6 +2218,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       emailVerified: false,
       isLoggedIn: false,
       authProvider: 'guest',
+      isAuthorizedAdmin: false,
+      dbRole: 'client',
       privacyAcceptedAt: storedConsent || undefined,
       healthConsent: false,
     };
@@ -2083,7 +2228,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [authUid, setAuthUid] = useState<string | null | undefined>(undefined);
 
   const isAdminUser = Boolean(
-    currentUser.isLoggedIn && (currentUser.role === 'admin' || (currentUser.emailVerified && isUserAdminEmail(currentUser.email)))
+    currentUser.isLoggedIn && (
+      currentUser.isAuthorizedAdmin === true ||
+      currentUser.dbRole === 'admin' ||
+      currentUser.role === 'admin' ||
+      (currentUser.email && isUserAdminEmail(currentUser.email, businessProfile.adminEmails))
+    )
   );
 
   const [authLoading, setAuthLoading] = useState(false);
@@ -2100,10 +2250,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const profile = await getUserProfileFirestore(fbUser.uid);
           const emailVerified = Boolean(fbUser.emailVerified);
           const dbRole = profile?.role;
-          const isAuthorizedAdmin = emailVerified && isUserAdminEmail(fbUser.email);
-          const assignedRole: UserRole = dbRole === 'admin' || dbRole === 'client'
-            ? dbRole
-            : (isAuthorizedAdmin ? 'admin' : 'client');
+          const isAuthorizedAdmin = Boolean(
+            dbRole === 'admin' ||
+            (profile as any)?.isAuthorizedAdmin ||
+            isUserAdminEmail(fbUser.email, businessProfile.adminEmails)
+          );
+          const savedRoleView = (localStorage.getItem('bl_user_role_view') || localStorage.getItem(STORAGE_KEYS.ROLE)) as UserRole | null;
+          const assignedRole: UserRole = isAuthorizedAdmin
+            ? (savedRoleView === 'client' ? 'client' : 'admin')
+            : (dbRole === 'admin' || dbRole === 'client' ? dbRole : 'client');
 
           setCurrentUser((prev) => {
             const isSameUser = Boolean(prev.uid && prev.uid === fbUser.uid);
@@ -2121,9 +2276,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               uid: fbUser.uid,
               photoUrl: fbUser.photoURL || profile?.photoURL || undefined,
               isLoggedIn: true,
-              authProvider: fbUser.providerData[0]?.providerId === 'google.com' ? 'google' : 'password',
+              authProvider: fbUser.providerData.some((p) => p.providerId === 'google.com') ? 'google' : 'password',
+              isAuthorizedAdmin,
+              dbRole: dbRole || (isAuthorizedAdmin ? 'admin' : (prev.dbRole || 'client')),
               privacyAcceptedAt: effectivePrivacyAcceptedAt,
-              healthConsent: profile?.healthConsent !== undefined ? profile.healthConsent : (isSameUser ? (prev.healthConsent || false) : false),
+              healthConsent: Boolean(profile?.healthConsent ?? (isSameUser ? prev.healthConsent : false)),
             };
             try {
               localStorage.setItem('bl_current_user_profile', JSON.stringify(updated));
@@ -2227,17 +2384,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setBusySlots(remoteSlots);
 
         if (isManager && appointments.length > 0) {
-          appointments.forEach(app => {
-            if (app.status !== 'cancelada') {
-              const exists = remoteSlots.some(b => b.id === app.id);
-              if (!exists) {
-                upsertBusySlotFirestore({
-                  id: app.id,
-                  providerId: app.providerId,
-                  startTimeUtc: app.startTimeUtc,
-                  endTimeUtc: app.endTimeUtc,
-                }).catch(() => {});
+          // 1. Purgar slots huérfanos o pertenecientes a citas canceladas
+          const cancelledApps = appointments.filter((a) => a.status === 'cancelada');
+          cancelledApps.forEach((cApp) => {
+            const cStartMs = new Date(cApp.startTimeUtc).getTime();
+            remoteSlots.forEach((slot) => {
+              if (slot.id === cApp.id || Math.abs(new Date(slot.startTimeUtc).getTime() - cStartMs) < 30 * 60 * 1000) {
+                deleteBusySlotFirestore(slot.id).catch(() => {});
               }
+            });
+          });
+
+          // 2. Asegurar que las citas activas estén registradas en busy_slots
+          const activeApps = appointments.filter((a) => a.status !== 'cancelada');
+          activeApps.forEach((app) => {
+            const exists = remoteSlots.some((b) => b.id === app.id);
+            if (!exists) {
+              upsertBusySlotFirestore({
+                id: app.id,
+                providerId: app.providerId,
+                startTimeUtc: app.startTimeUtc,
+                endTimeUtc: app.endTimeUtc,
+              }).catch(() => {});
             }
           });
         }
@@ -2287,17 +2455,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [authUid, isAdminUser, currentUser.uid]);
 
   const switchRole = (role: UserRole) => {
-    const emailVerified = Boolean(currentUser.emailVerified);
-    const canAccessAdmin = currentUser.isLoggedIn && (currentUser.role === 'admin' || (emailVerified && isUserAdminEmail(currentUser.email)));
-    if (role === 'admin' && !canAccessAdmin) {
+    const isAuthorized = Boolean(
+      currentUser.isAuthorizedAdmin === true ||
+      currentUser.dbRole === 'admin' ||
+      currentUser.role === 'admin' ||
+      (currentUser.email && isUserAdminEmail(currentUser.email, businessProfile.adminEmails))
+    );
+    if (role === 'admin' && !isAuthorized) {
       console.warn('Acceso denegado: Solo el administrador asignado puede acceder al panel gerencial.');
       return;
     }
     localStorage.setItem(STORAGE_KEYS.ROLE, role);
+    localStorage.setItem('bl_user_role_view', role);
     setCurrentUser((prev) => {
       const updated = {
         ...prev,
         role,
+        isAuthorizedAdmin: isAuthorized,
+        dbRole: isAuthorized ? 'admin' : (prev.dbRole || 'client'),
       };
       try {
         localStorage.setItem('bl_current_user_profile', JSON.stringify(updated));

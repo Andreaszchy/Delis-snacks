@@ -4,16 +4,15 @@ import {
   Palette,
   Save,
   CheckCircle2,
-  ShieldCheck,
   Building2,
   Flame,
   Coffee,
   Heart,
   Sun,
+  ShieldCheck,
+  Users,
   UserPlus,
   Trash2,
-  Users,
-  Mail,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { GoogleDriveInput } from '../common/GoogleDriveInput';
@@ -37,13 +36,8 @@ export const AdminSettings: React.FC = () => {
   const [currencyCode, setCurrencyCode] = useState(businessProfile.currencyCode);
   const [phone, setPhone] = useState(businessProfile.phone);
   const [address, setAddress] = useState(businessProfile.address);
-  const [adminEmails, setAdminEmails] = useState<string[]>(
-    businessProfile.adminEmails && businessProfile.adminEmails.length > 0
-      ? businessProfile.adminEmails
-      : ['jblackbourne98@gmail.com', 'jorgeandres980706@gmail.com']
-  );
+  const [adminEmails, setAdminEmails] = useState<string[]>(businessProfile.adminEmails || []);
   const [newAdminEmail, setNewAdminEmail] = useState('');
-  const [emailError, setEmailError] = useState('');
 
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -56,32 +50,31 @@ export const AdminSettings: React.FC = () => {
     setCurrencyCode(businessProfile.currencyCode);
     setPhone(businessProfile.phone);
     setAddress(businessProfile.address);
-    if (businessProfile.adminEmails && businessProfile.adminEmails.length > 0) {
-      setAdminEmails(businessProfile.adminEmails);
-    }
+    setAdminEmails(businessProfile.adminEmails || []);
   }, [businessProfile]);
 
-  const handleAddAdminEmail = () => {
-    setEmailError('');
+  const handleAddAdminEmail = (e: React.FormEvent) => {
+    e.preventDefault();
     const clean = newAdminEmail.trim().toLowerCase();
-    if (!clean || !clean.includes('@') || !clean.includes('.')) {
-      setEmailError('Ingresa un correo electrónico válido');
+    if (!clean || !clean.includes('@')) return;
+    if (adminEmails.includes(clean)) {
+      setNewAdminEmail('');
       return;
     }
-    if (adminEmails.some((e) => e.toLowerCase() === clean)) {
-      setEmailError('Este correo ya está en la lista de administradores');
-      return;
-    }
-    setAdminEmails([...adminEmails, clean]);
+    const updated = [...adminEmails, clean];
+    setAdminEmails(updated);
+    updateBusinessProfile({ adminEmails: updated });
     setNewAdminEmail('');
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 3000);
   };
 
   const handleRemoveAdminEmail = (emailToRemove: string) => {
-    if (adminEmails.length <= 1) {
-      setEmailError('Debe existir al menos un administrador en el sistema');
-      return;
-    }
-    setAdminEmails(adminEmails.filter((e) => e.toLowerCase() !== emailToRemove.toLowerCase()));
+    const updated = adminEmails.filter((e) => e !== emailToRemove);
+    setAdminEmails(updated);
+    updateBusinessProfile({ adminEmails: updated });
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 3000);
   };
 
   const handleSaveProfile = (e: React.FormEvent) => {
@@ -95,7 +88,7 @@ export const AdminSettings: React.FC = () => {
       currencyCode: currencyCode.trim() || 'MXN',
       phone: phone.trim(),
       address: address.trim(),
-      adminEmails: adminEmails.map((e) => e.trim().toLowerCase()).filter(Boolean),
+      adminEmails,
     });
 
     setSavedSuccess(true);
@@ -121,7 +114,6 @@ export const AdminSettings: React.FC = () => {
             <Palette className="w-4 h-4 text-slate-700" />
             Temas Visuales y Color de Fondo
           </h3>
-
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
@@ -140,141 +132,136 @@ export const AdminSettings: React.FC = () => {
                     : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
                 }`}
               >
-                <div className="flex items-center justify-between gap-1">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs sm:text-sm truncate">
+                <div className="flex items-center justify-between">
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-2xs"
+                    style={{ backgroundColor: t.raw.primaryBtn }}
+                  >
                     {icon}
-                    <span className="truncate">{t.name}</span>
                   </div>
                   {isSelected && (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="w-2 h-2 rounded-full bg-slate-950 animate-pulse" />
                   )}
                 </div>
-
-                <div className="flex items-center gap-2 pt-1.5 border-t border-slate-100">
-                  <div
-                    className="w-4 h-4 rounded-full border border-slate-300 shrink-0"
-                    style={{ backgroundColor: t.raw.bg }}
-                    title="Fondo"
-                  />
-                  <div
-                    className={`flex-1 py-1 px-2 rounded-lg text-[10px] sm:text-[11px] font-bold text-center shadow-2xs truncate ${t.buttonClass}`}
-                  >
-                    Botón
-                  </div>
+                <div>
+                  <p className="font-bold text-xs text-slate-900 capitalize">{id}</p>
                 </div>
               </button>
             );
           })}
         </div>
-
-
       </div>
 
-      {/* BUSINESS PROFILE CONFIGURATION FORM */}
-      <form
-        onSubmit={handleSaveProfile}
-        className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-5"
-      >
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+      {/* Perfil del Negocio */}
+      <form onSubmit={handleSaveProfile} className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-5">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-slate-700" />
-            <h3 className="font-bold text-slate-900 text-sm sm:text-base">
-              Identidad del Negocio & Datos Comerciales
-            </h3>
+            <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
+              <Building2 className="w-4 h-4 text-rose-400" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+                Información del Negocio
+              </h3>
+              <p className="text-xs text-slate-500">
+                Personaliza el nombre, eslogan y datos de contacto de tu marca.
+              </p>
+            </div>
           </div>
+
           {savedSuccess && (
-            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              ¡Guardado exitosamente!
-            </span>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>Guardado</span>
+            </div>
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="font-semibold text-slate-700 block mb-1">
-              Nombre Comercial del Negocio *
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              Nombre del Negocio
             </label>
             <input
               type="text"
-              required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              required
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium"
             />
           </div>
 
           <div>
-            <label className="font-semibold text-slate-700 block mb-1">
-              Giro o Categoría Comercial
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              Categoría Principal
             </label>
             <input
               type="text"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              required
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium"
             />
           </div>
 
           <div className="sm:col-span-2">
-            <label className="font-semibold text-slate-700 block mb-1">
-              Eslogan o Frase de Presentación
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              Eslogan o Descripción Breve
             </label>
             <input
               type="text"
               value={slogan}
               onChange={(e) => setSlogan(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium"
             />
           </div>
 
           <div>
-            <label className="font-semibold text-slate-700 block mb-1">
-              Símbolo de Moneda (ej. $)
-            </label>
-            <input
-              type="text"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 font-mono font-bold"
-            />
-          </div>
-
-          <div>
-            <label className="font-semibold text-slate-700 block mb-1">
-              Código de Moneda (ej. MXN, USD, COP, EUR)
-            </label>
-            <input
-              type="text"
-              value={currencyCode}
-              onChange={(e) => setCurrencyCode(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 font-mono"
-            />
-          </div>
-
-          <div>
-            <label className="font-semibold text-slate-700 block mb-1">
-              Teléfono / WhatsApp (para pedidos y recepción de comprobantes)
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              Teléfono / WhatsApp de Contacto
             </label>
             <input
               type="text"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium"
             />
           </div>
 
           <div>
-            <label className="font-semibold text-slate-700 block mb-1">
-              Dirección del Establecimiento
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              Moneda y Código
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <input
+                type="text"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                placeholder="$"
+                className="px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium text-center"
+              />
+              <input
+                type="text"
+                value={currencyCode}
+                onChange={(e) => setCurrencyCode(e.target.value)}
+                placeholder="MXN"
+                className="col-span-2 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium uppercase"
+              />
+            </div>
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              Dirección o Cobertura
             </label>
             <input
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium"
             />
           </div>
+
           <div className="sm:col-span-2 pt-2 border-t border-slate-100">
             <GoogleDriveInput
               value={logoUrl}
@@ -283,94 +270,6 @@ export const AdminSettings: React.FC = () => {
               placeholder="https://drive.google.com/file/d/... o https://..."
               helperText="Pega el enlace compartido de Google Drive de tu logotipo para normalizarlo automáticamente y mostrarlo en la barra superior."
             />
-          </div>
-
-          {/* Gestión Dinámica de Administradores */}
-          <div className="sm:col-span-2 pt-4 border-t border-slate-200">
-            <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/90 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-sm">
-                      Administradores Autorizados (Acceso Gerencial)
-                    </h4>
-                    <p className="text-[11px] text-slate-500">
-                      Gestiona quién tiene permisos de administración. Si cambia el dueño o se añade un socio, solo añade su correo aquí sin necesidad de editar ni republicar reglas de Firestore.
-                    </p>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200 text-slate-700 font-mono shrink-0">
-                  {adminEmails.length} admin{adminEmails.length === 1 ? '' : 's'}
-                </span>
-              </div>
-
-              {/* Add Admin Email Input */}
-              <div className="flex items-center gap-2 pt-1">
-                <div className="relative flex-1">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    value={newAdminEmail}
-                    onChange={(e) => {
-                      setNewAdminEmail(e.target.value);
-                      setEmailError('');
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddAdminEmail();
-                      }
-                    }}
-                    placeholder="nuevo.administrador@gmail.com"
-                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 font-medium"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleAddAdminEmail}
-                  className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-xs flex items-center gap-1.5 transition-all shrink-0 active:scale-95"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Añadir</span>
-                </button>
-              </div>
-
-              {emailError && (
-                <p className="text-xs font-semibold text-rose-600 bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 animate-in fade-in">
-                  {emailError}
-                </p>
-              )}
-
-              {/* Admin Emails List */}
-              <div className="space-y-1.5 pt-1">
-                {adminEmails.map((email) => (
-                  <div
-                    key={email}
-                    className="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                      <span className="font-semibold text-slate-800 truncate font-mono">{email}</span>
-                    </div>
-                    {adminEmails.length > 1 ? (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveAdminEmail(email)}
-                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
-                        title="Quitar acceso de administrador"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    ) : (
-                      <span className="text-[10px] text-slate-400 font-medium italic">Principal</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
 
@@ -384,6 +283,76 @@ export const AdminSettings: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {/* Gestión de Administradores & Roles (100% Base de Datos Firestore) */}
+      <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+        <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+          <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+            <ShieldCheck className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+              Administradores & Roles (Base de Datos)
+            </h3>
+            <p className="text-xs text-slate-500">
+              Gestión dinámica de accesos gerenciales en Firestore. Los roles se leen en tiempo real sin correos fijos en el código.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleAddAdminEmail} className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <input
+              type="email"
+              value={newAdminEmail}
+              onChange={(e) => setNewAdminEmail(e.target.value)}
+              placeholder="nuevo.administrador@correo.com"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 font-medium"
+            />
+          </div>
+          <button
+            type="submit"
+            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-95 shrink-0"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Autorizar Administrador</span>
+          </button>
+        </form>
+
+        <div className="space-y-2 pt-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+            Cuentas con Privilegios de Administración ({adminEmails.length})
+          </span>
+
+          {adminEmails.length === 0 ? (
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+              No hay administradores adicionales configurados en la base de datos.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {adminEmails.map((email) => (
+                <div
+                  key={email}
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-indigo-50/60 border border-indigo-200 text-xs font-medium text-indigo-950"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    <span className="truncate">{email}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAdminEmail(email)}
+                    className="p-1 rounded-lg text-rose-600 hover:bg-rose-100 transition-colors ml-2 shrink-0"
+                    title="Remover permisos de administrador"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

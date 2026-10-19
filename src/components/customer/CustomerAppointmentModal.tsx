@@ -56,10 +56,20 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
 
   const activeService: Service | undefined = services.find((s) => s.id === selectedServiceId) || services[0];
 
-  const selectedModality = 'local'; // Siempre local según requerimiento
+  const [selectedModality, setSelectedModality] = useState<'local' | 'domicilio'>(
+    activeService?.modality === 'local' ? 'local' : 'domicilio'
+  );
 
-  // Default date: today formatted YYYY-MM-DD
-  const todayStr = new Date().toISOString().split('T')[0];
+  useEffect(() => {
+    if (activeService) {
+      setSelectedModality(activeService.modality === 'local' ? 'local' : 'domicilio');
+    }
+  }, [selectedServiceId, activeService?.modality]);
+
+  // Default date in local timezone YYYY-MM-DD
+  const formatLocalDate = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const todayStr = formatLocalDate(new Date());
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
 
   const [selectedTime, setSelectedTime] = useState<string>('');
@@ -226,7 +236,7 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
   // Max 30 days calculation
   const maxDateObj = new Date();
   maxDateObj.setDate(maxDateObj.getDate() + 30);
-  const maxDateStr = maxDateObj.toISOString().split('T')[0];
+  const maxDateStr = formatLocalDate(maxDateObj);
 
   // Missing validation message for disabled button
   const getMissingFieldsMessage = () => {
@@ -290,7 +300,7 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
         customerPhone: customerPhone.trim(),
         customerNotes: customerNotes.trim(),
         customerAddress: customerAddress.trim(),
-        modality: 'domicilio',
+        modality: selectedModality,
         selectedOptions: flatSelectedList,
         dateStr: selectedDate,
         timeStr: selectedTime,
@@ -305,7 +315,7 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
         totalPrice: newApp.totalPrice,
         priceType: activeService?.priceType || 'fijo',
         deadlineMinutes: activeService?.providerResponseDeadlineMinutes || 60,
-        modality: 'local',
+        modality: newApp.modality || selectedModality,
         selectedOptions: flatSelectedList,
         nightSurcharge: newApp.nightSurcharge,
         advancePaymentAmount: newApp.advancePaymentAmount,
@@ -471,7 +481,12 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
             )}
 
             <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-600 flex justify-between items-center">
-              <span>Modalidad: <strong>En Local / Mostrador</strong></span>
+              <span>
+                Modalidad:{' '}
+                <strong className={successApp.modality === 'domicilio' ? 'text-amber-800' : 'text-slate-800'}>
+                  {successApp.modality === 'domicilio' ? 'A Domicilio / Evento' : 'En Local / Mostrador'}
+                </strong>
+              </span>
               <span>
                 Total:{' '}
                 <strong className="text-slate-900 font-bold">
@@ -522,10 +537,8 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
                       <span className="inline-flex items-center gap-1 font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">
                         <Home className="w-3.5 h-3.5 text-rose-600" />
                         <span>
-                          {activeService.modality === 'domicilio'
+                          {selectedModality === 'domicilio'
                             ? 'A Domicilio / Evento'
-                            : activeService.modality === 'ambas'
-                            ? 'Local y A Domicilio'
                             : 'En Local / Mostrador'}
                         </span>
                       </span>
@@ -540,6 +553,36 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
                         </span>
                       )}
                     </div>
+
+                    {activeService.modality === 'ambas' && (
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-[11px]">
+                        <span className="font-bold text-slate-700">Modalidad para este evento:</span>
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedModality('domicilio')}
+                            className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                              selectedModality === 'domicilio'
+                                ? 'bg-amber-600 text-white shadow-2xs'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            A Domicilio
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedModality('local')}
+                            className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                              selectedModality === 'local'
+                                ? 'bg-slate-800 text-white shadow-2xs'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            En Local
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -706,7 +749,7 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
                       onClick={() => {
                         const tomorrow = new Date();
                         tomorrow.setDate(tomorrow.getDate() + 1);
-                        setSelectedDate(tomorrow.toISOString().split('T')[0]);
+                        setSelectedDate(formatLocalDate(tomorrow));
                         setSelectedTime('');
                       }}
                       className="px-3.5 py-1.5 text-xs font-bold bg-white border border-slate-300 rounded-xl hover:bg-slate-100 text-slate-700 shadow-2xs"
@@ -763,9 +806,6 @@ export const CustomerAppointmentModal: React.FC<CustomerAppointmentModalProps> =
                   </div>
                 )}
 
-                <p className="text-[11px] text-slate-400 italic">
-                  * Mínimo {activeService?.minNoticeHours || 2} horas de anticipación para agendar citas el mismo día.
-                </p>
               </div>
 
               {/* 4. Customer Details */}

@@ -187,10 +187,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
       allow list: if isAdmin();
-      allow create: if isSignedIn() && request.auth.uid == userId
-        && (!('role' in request.resource.data) || request.resource.data.role == 'client');
-      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role','uid']));
+      allow create, update: if (isSignedIn() && request.auth.uid == userId) || isAdmin();
       allow delete: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
     }
 
@@ -210,7 +207,7 @@ service cloud.firestore {
         && request.resource.data.providerId is string
         && request.resource.data.startTimeUtc is string
         && request.resource.data.endTimeUtc is string;
-      allow delete: if isSignedIn();
+      allow delete: if true;
     }
 
     // Notifications collection: Admin or Recipient read; Create by admin, user to admin, or to self; Update read flag; Delete

@@ -102,11 +102,33 @@ export function normalizeDriveOrDirectUrl(url: string): GoogleDriveNormalizeResu
 }
 
 /**
+ * Obtiene la URL de reproducción embebida directa para un video alojado en Google Drive
+ * Retorna https://drive.google.com/file/d/{FILE_ID}/preview listo para usar en <iframe>
+ */
+export function getGoogleDriveVideoEmbedUrl(url: string): string | null {
+  const fileId = extractGoogleDriveFileId(url);
+  if (!fileId) return null;
+  return `https://drive.google.com/file/d/${fileId}/preview`;
+}
+
+/**
+ * Detecta si una URL apunta a un video (Drive con preview o extensiones .mp4, .webm, etc.)
+ */
+export function isVideoMediaUrl(url: string): boolean {
+  if (!url) return false;
+  const trimmed = url.trim().toLowerCase();
+  if (trimmed.includes('drive.google.com') && (trimmed.includes('/preview') || trimmed.includes('video'))) {
+    return true;
+  }
+  return trimmed.endsWith('.mp4') || trimmed.endsWith('.webm') || trimmed.endsWith('.mov') || trimmed.endsWith('.m4v');
+}
+
+/**
  * URLs de ejemplo de Google Drive para demostración o prueba rápida
  */
 export const GOOGLE_DRIVE_EXAMPLES = [
   {
-    label: 'Enlace compartir típico de Drive',
+    label: 'Enlace compartir típico de Drive (Fotos o Video)',
     sample: 'https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs/view?usp=sharing',
   },
   {

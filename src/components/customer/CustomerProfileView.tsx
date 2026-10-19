@@ -94,6 +94,28 @@ export const CustomerProfileView: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-28 pt-2 animate-in fade-in duration-200">
+      {/* Banner de acceso rápido para administradores en vista de cliente */}
+      {isAdminUser && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-extrabold text-indigo-950 text-sm">Privilegios de Administrador Activos</h4>
+              <p className="text-xs text-indigo-700">Estás navegando en modo Vista Cliente. Puedes volver al panel gerencial en cualquier momento.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => switchRole('admin')}
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all active:scale-95 shrink-0"
+          >
+            Volver a Panel Admin
+          </button>
+        </div>
+      )}
+
       {/* 1. Header Card: Logged in or Guest */}
       {currentUser.isLoggedIn ? (
         <div className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-center sm:items-start gap-5">

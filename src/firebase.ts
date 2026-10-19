@@ -968,9 +968,7 @@ export function isUserAdminEmail(email?: string | null, customAdminEmails?: stri
     } catch {}
   }
 
-  // Fallback bootstrap list
-  const bootstrapAdmins = ['jblackbourne98@gmail.com', 'jorgeandres980706@gmail.com'];
-  return bootstrapAdmins.some((adminEmail) => adminEmail.toLowerCase() === cleanEmail);
+  return false;
 }
 
 // Provider instance
@@ -982,22 +980,28 @@ export async function loginWithGoogle(): Promise<FirebaseUser> {
     const result = await signInWithPopup(auth, googleAuthProvider);
     const user = result.user;
     const existing = await getUserProfileFirestore(user.uid);
-    const isAdmin = Boolean(user.emailVerified && isUserAdminEmail(user.email));
-    const roleToAssign = existing?.role || (isAdmin ? 'admin' : 'client');
+    const isDbAdmin = existing?.role === 'admin' || (user.emailVerified && isUserAdminEmail(user.email));
+    const roleToAssign = existing?.role || (isDbAdmin ? 'admin' : 'client');
     const localConsent = typeof window !== 'undefined' ? localStorage.getItem('bl_privacy_consent_accepted') : null;
     const privacyAcceptedAt = existing?.privacyAcceptedAt || localConsent || undefined;
-    await upsertUserProfileFirestore({
-      uid: user.uid,
-      email: user.email || '',
-      displayName: user.displayName || existing?.displayName || (roleToAssign === 'admin' ? 'Administrador' : 'Cliente'),
-      photoURL: user.photoURL || existing?.photoURL || '',
-      phone: existing?.phone || user.phoneNumber || '',
-      address: existing?.address || '',
-      role: roleToAssign,
-      privacyAcceptedAt,
-      healthConsent: existing?.healthConsent ?? false,
-      createdAt: existing?.createdAt || new Date().toISOString(),
-    });
+    
+    try {
+      await upsertUserProfileFirestore({
+        uid: user.uid,
+        email: user.email || '',
+        displayName: user.displayName || existing?.displayName || (roleToAssign === 'admin' ? 'Administrador' : 'Cliente'),
+        photoURL: user.photoURL || existing?.photoURL || '',
+        phone: existing?.phone || user.phoneNumber || '',
+        address: existing?.address || '',
+        role: roleToAssign,
+        privacyAcceptedAt,
+        healthConsent: existing?.healthConsent ?? false,
+        createdAt: existing?.createdAt || new Date().toISOString(),
+      });
+    } catch (upsertErr) {
+      console.warn('Aviso: no se pudo guardar el perfil en Firestore inmediatamente:', upsertErr);
+    }
+
     if (privacyAcceptedAt && typeof window !== 'undefined') {
       try {
         localStorage.setItem('bl_privacy_consent_accepted', privacyAcceptedAt);
@@ -1032,17 +1036,21 @@ export async function registerWithEmail(email: string, pass: string, displayName
     const isAdmin = Boolean(result.user.emailVerified && isUserAdminEmail(result.user.email));
     const roleToAssign = existing?.role || (isAdmin ? 'admin' : 'client');
     const now = new Date().toISOString();
-    await upsertUserProfileFirestore({
-      uid: result.user.uid,
-      email: result.user.email || email,
-      displayName: displayName.trim() || (roleToAssign === 'admin' ? 'Administrador' : 'Cliente'),
-      phone: '',
-      address: '',
-      role: roleToAssign,
-      privacyAcceptedAt: now,
-      healthConsent: true,
-      createdAt: now,
-    });
+    try {
+      await upsertUserProfileFirestore({
+        uid: result.user.uid,
+        email: result.user.email || email,
+        displayName: displayName.trim() || (roleToAssign === 'admin' ? 'Administrador' : 'Cliente'),
+        phone: '',
+        address: '',
+        role: roleToAssign,
+        privacyAcceptedAt: now,
+        healthConsent: true,
+        createdAt: now,
+      });
+    } catch (saveErr) {
+      console.warn('Aviso: no se pudo guardar perfil inicial en Firestore:', saveErr);
+    }
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('bl_privacy_consent_accepted', now);

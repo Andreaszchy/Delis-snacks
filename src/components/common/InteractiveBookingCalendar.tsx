@@ -166,21 +166,21 @@ export const InteractiveBookingCalendar: React.FC<InteractiveBookingCalendarProp
             colorClasses = isSelected
               ? 'bg-emerald-500 text-white border-emerald-600 shadow-md ring-2 ring-emerald-500 ring-offset-1'
               : 'bg-emerald-50/90 text-emerald-950 border-emerald-300 hover:bg-emerald-100 hover:border-emerald-400 hover:shadow-xs';
-            badgeText = '0/2';
-            badgeClasses = isSelected ? 'bg-white/30 text-white' : 'bg-emerald-200/70 text-emerald-900';
+            badgeText = '';
+            badgeClasses = '';
           } else if (status === 'yellow') {
             // 1 cita agendada (Queda 1 cupo libre)
             colorClasses = isSelected
               ? 'bg-amber-500 text-white border-amber-600 shadow-md ring-2 ring-amber-500 ring-offset-1'
               : 'bg-amber-50/90 text-amber-950 border-amber-300 hover:bg-amber-100 hover:border-amber-400 hover:shadow-xs';
-            badgeText = '1/2';
-            badgeClasses = isSelected ? 'bg-white/30 text-white' : 'bg-amber-200/80 text-amber-900';
+            badgeText = '';
+            badgeClasses = '';
           } else if (status === 'red') {
             // 2 citas agendadas (Lleno / No disponible)
             colorClasses = isSelected && allowAdminSelectionOnFullDays
               ? 'bg-rose-600 text-white border-rose-700 shadow-md ring-2 ring-rose-500 ring-offset-1'
               : 'bg-rose-50/70 text-rose-500 border-rose-200 opacity-80 cursor-not-allowed';
-            badgeText = '2/2 Lleno';
+            badgeText = allowAdminSelectionOnFullDays ? '2/2 Lleno' : '';
             badgeClasses = isSelected ? 'bg-white/30 text-white' : 'bg-rose-100 text-rose-700';
           } else {
             // Closed / Past / Blocked
@@ -262,17 +262,17 @@ export const InteractiveBookingCalendar: React.FC<InteractiveBookingCalendarProp
           <div className="shrink-0">
             {selectedDateStatus.status === 'green' && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                2 cupos libres
+                {allowAdminSelectionOnFullDays ? '2 cupos libres' : 'Disponible'}
               </span>
             )}
             {selectedDateStatus.status === 'yellow' && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                1 cupo libre
+                {allowAdminSelectionOnFullDays ? '1 cupo libre' : 'Disponible'}
               </span>
             )}
             {selectedDateStatus.status === 'red' && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
-                Día lleno
+                {allowAdminSelectionOnFullDays ? '2/2 Lleno' : 'No disponible'}
               </span>
             )}
           </div>
@@ -290,12 +290,12 @@ export const InteractiveBookingCalendar: React.FC<InteractiveBookingCalendarProp
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
             <span className="font-semibold text-slate-800">Amarillo:</span>
-            <span>1 cita reservada (queda 1)</span>
+            <span>{allowAdminSelectionOnFullDays ? '1 cita reservada (queda 1)' : 'Horarios disponibles'}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" />
             <span className="font-semibold text-slate-800">Rojo:</span>
-            <span>2 citas (No disponible)</span>
+            <span>{allowAdminSelectionOnFullDays ? '2 citas (Lleno)' : 'No disponible'}</span>
           </div>
         </div>
       )}
